@@ -14,7 +14,7 @@
 //--------------------------------------------------------------------------------------
 #define _XM_NO_INTRINSICS_
 
-#include "main.h"
+#include "Application.h"
 
 DirectX::XMFLOAT4 g_EyePosition(0.0f, 0, -3, 1.0f);
 
@@ -27,8 +27,8 @@ HRESULT		InitMesh();
 HRESULT		InitWorld(int width, int height);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-void		Render();
-
+void		Draw();
+void Update();
 
 
 //--------------------------------------------------------------------------------------
@@ -65,6 +65,12 @@ int						g_viewHeight;
 
 DrawableGameObject		g_GameObject;
 
+Camera* g_pCamera0;
+Camera* g_pCurrentCamera;
+
+float currentPosZ;
+float currentPosX;
+float rotationX;
 
 //--------------------------------------------------------------------------------------
 // Entry point to the program. Initializes everything and goes into a message processing 
@@ -95,7 +101,8 @@ int WINAPI wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         }
         else
         {
-            Render();
+            Draw();
+            Update();
         }
     }
 
@@ -482,18 +489,23 @@ HRESULT		InitMesh()
 }
 
 // ***************************************************************************************
-// InitWorld
+// InitWorld (Initialize)
 // ***************************************************************************************
 HRESULT		InitWorld(int width, int height)
 {
 	// Initialize the view matrix
-	XMVECTOR Eye = XMLoadFloat4(&g_EyePosition);
-	XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	g_View = XMMatrixLookAtLH(Eye, At, Up);
+	//XMVECTOR Eye = XMLoadFloat4(&g_EyePosition);
+	//XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	//XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	//g_View = XMMatrixLookAtLH(Eye, At, Up);
 
-	// Initialize the projection matrix
-	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+	//// Initialize the projection matrix
+	//g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+
+    g_pCamera0 = new Camera(XMFLOAT4(0.0f, 0.0f, -10.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
+    g_pCurrentCamera = g_pCamera0;
+    g_pCurrentCamera->SetView();
+    g_pCurrentCamera->SetProjection();
 
 	return S_OK;
 }
@@ -631,31 +643,69 @@ float calculateDeltaTime()
 }
 
 //--------------------------------------------------------------------------------------
-// Render a frame
+// Constantly Updates The Scene 
 //--------------------------------------------------------------------------------------
-void Render()
+void Update()
 {
     float t = calculateDeltaTime(); // capped at 60 fps
     if (t == 0.0f)
         return;
 
+    if (GetAsyncKeyState('5'))
+    {
+        Debug::GetInstance().DebugNum(5);
+    }
+
+    if (GetAsyncKeyState('W'))
+    {
+        currentPosZ += 0.1f * cos(rotationX);
+        currentPosX += 0.1f * sin(rotationX);
+    }
+    if (GetAsyncKeyState('S'))
+    {
+        currentPosZ -= 0.1f * cos(rotationX);
+        currentPosX -= 0.1f * sin(rotationX);
+    }
+    if (GetAsyncKeyState('A'))
+    {
+        rotationX -= 0.05f;
+    }
+    if (GetAsyncKeyState('D'))
+    {
+        rotationX += 0.05f;
+    }
+    g_pCamera0->SetPosition(XMFLOAT4(currentPosX - sin(rotationX), 3, currentPosZ - cos(rotationX),0.0f));
+    g_pCamera0->SetLookAt(XMFLOAT4(currentPosX, 3.0f, currentPosZ, 0.0f));
+    g_pCamera0->SetView();
+
+   g_GameObject.update(t, g_pImmediateContext);
+
+   
+   g_pCurrentCamera->SetView();
+   g_pCurrentCamera->SetProjection();
+}
+
+//--------------------------------------------------------------------------------------
+// Render a frame
+//--------------------------------------------------------------------------------------
+void Draw()
+{
     // Clear the back buffer
     g_pImmediateContext->ClearRenderTargetView( g_pRenderTargetView, Colors::MidnightBlue );
 
     // Clear the depth buffer to 1.0 (max depth)
     g_pImmediateContext->ClearDepthStencilView( g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-	// Update the cube transform, material etc. 
-	g_GameObject.update(t, g_pImmediateContext);
-
     // get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+    XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+    XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
     // store this and the view / projection in a constant buffer for the vertex shader to use
     ConstantBuffer cb1;
 	cb1.mWorld = XMMatrixTranspose( mGO);
-	cb1.mView = XMMatrixTranspose( g_View );
-	cb1.mProjection = XMMatrixTranspose( g_Projection );
+	cb1.mView = XMMatrixTranspose( view );
+	cb1.mProjection = XMMatrixTranspose( projection );
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource( g_pConstantBuffer, 0, nullptr, &cb1, 0, 0 );
 

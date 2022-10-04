@@ -16,6 +16,10 @@
 
 #include <vector>
 
+#include "Debug.h"
+#include "Camera.h"
+
 using namespace std;
 
 typedef vector<DrawableGameObject*> vecDrawables;
+
