@@ -31,7 +31,6 @@ void		Render();
 void Update();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
-
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
@@ -505,7 +504,6 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-
 	return hr;
 }
 
@@ -555,8 +553,7 @@ void CleanupDevice()
 	if (g_pImmediateContext1) g_pImmediateContext1->Flush();
 	g_pImmediateContext->Flush();
 
-	if (g_pLightConstantBuffer)
-		g_pLightConstantBuffer->Release();
+	if (g_pLightConstantBuffer)	g_pLightConstantBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pConstantBuffer) g_pConstantBuffer->Release();
 	if (g_pVertexShader) g_pVertexShader->Release();
@@ -633,13 +630,12 @@ void setupLightForRender()
 {
 	Light light;
 	light.Enabled = static_cast<int>(true);
-	light.LightType = PointLight;
+	light.LightType = DirectionalLight;
 	light.Color = XMFLOAT4(Colors::White);
 	light.SpotAngle = XMConvertToRadians(45.0f);
 	light.ConstantAttenuation = 1.0f;
 	light.LinearAttenuation = 1;
 	light.QuadraticAttenuation = 1;
-
 
 	// set up the light
 	light.Position = LightPosition;
@@ -681,8 +677,8 @@ float calculateDeltaTime()
 
 bool InitDirectInput(HINSTANCE hInstance)
 {
-	hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION,	IID_IDirectInput8,(void**)&DirectInput,	NULL);
-	hr = DirectInput->CreateDevice(GUID_SysMouse, &DIMouse,	NULL);
+	hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&DirectInput, NULL);
+	hr = DirectInput->CreateDevice(GUID_SysMouse, &DIMouse, NULL);
 	hr = DIMouse->SetDataFormat(&c_dfDIMouse);
 	hr = DIMouse->SetCooperativeLevel(g_hWnd, DISCL_FOREGROUND | DISCL_NOWINKEY);
 	return true;
@@ -719,15 +715,15 @@ void DetectInput(double deltaTime)
 
 	return;
 }
+
 //--------------------------------------------------------------------------------------
 // Constantly Updates The Scene 
 //--------------------------------------------------------------------------------------
-void Update() 
+void Update()
 {
 	float deltaTime = calculateDeltaTime(); // capped at 60 fps
 	if (deltaTime == 0.0f)
 		return;
-
 
 	if (GetAsyncKeyState('5'))
 	{
@@ -771,7 +767,6 @@ void Render()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-
 	setupLightForRender();
 
 	// Render the cube
@@ -783,6 +778,8 @@ void Render()
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 
+
+
 	g_GameObject.draw(g_pImmediateContext);
 
 	// IMGUI
@@ -791,6 +788,8 @@ void Render()
 	ImGui::NewFrame();
 
 	ImGui::Begin("Debug Window");
+
+	ImGui::SetWindowSize(ImVec2(500.0f,200.0f));
 
 	std::string PositionX = "Position X: " + std::to_string(currentPosX);
 	ImGui::Text(PositionX.c_str());
