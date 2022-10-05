@@ -502,7 +502,7 @@ HRESULT		InitWorld(int width, int height)
 	//// Initialize the projection matrix
 	//g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
 
-    g_pCamera0 = new Camera(XMFLOAT4(0.0f, 0.0f, -10.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
+    g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -10.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
     g_pCurrentCamera = g_pCamera0;
     g_pCurrentCamera->SetView();
     g_pCurrentCamera->SetProjection();
@@ -674,8 +674,8 @@ void Update()
     {
         rotationX += 0.05f;
     }
-    g_pCamera0->SetPosition(XMFLOAT4(currentPosX - sin(rotationX), 3, currentPosZ - cos(rotationX),0.0f));
-    g_pCamera0->SetLookAt(XMFLOAT4(currentPosX, 3.0f, currentPosZ, 0.0f));
+    g_pCamera0->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), 3, currentPosZ - cos(rotationX)));
+    g_pCamera0->SetLookAt(XMFLOAT3(currentPosX, 3.0f, currentPosZ));
     g_pCamera0->SetView();
 
    g_GameObject.update(t, g_pImmediateContext);

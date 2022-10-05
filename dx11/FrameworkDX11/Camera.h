@@ -9,18 +9,18 @@
 class Camera
 {
 public:
-	Camera(XMFLOAT4 position, XMFLOAT4 at, XMFLOAT4 up, FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth);
+	Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth);
 	~Camera();
 
 	void Update();
 
 	//Return Position, Lookat and up;
-	XMFLOAT4 GetPosition() { return _eye; }
-	void SetPosition(XMFLOAT4 position) { _eye = position; }
-	XMFLOAT4 GetLookAt() { return _at; }
-	void SetLookAt(XMFLOAT4 atPosition) { _at = atPosition; }
-	XMFLOAT4 GetUp() { return _up; }
-	void SetUp(XMFLOAT4 upPosition) { _up = upPosition; }
+	XMFLOAT3 GetPosition() { return _eye; }
+	void SetPosition(XMFLOAT3 position) { _eye = position; }
+	XMFLOAT3 GetLookAt() { return _at; }
+	void SetLookAt(XMFLOAT3 atPosition) { _at = atPosition; }
+	XMFLOAT3 GetUp() { return _up; }
+	void SetUp(XMFLOAT3 upPosition) { _up = upPosition; }
 
 	//Return View, Projection and combined viewProjection;
 	XMFLOAT4X4* GetView() { return &_view; }
@@ -41,9 +41,9 @@ public:
 	void Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth);
 
 private:
-	XMFLOAT4 _eye;
-	XMFLOAT4 _at;
-	XMFLOAT4 _up;
+	XMFLOAT3 _eye;
+	XMFLOAT3 _at;
+	XMFLOAT3 _up;
 
 	FLOAT _windowWidth;
 	FLOAT _windowHeight;
