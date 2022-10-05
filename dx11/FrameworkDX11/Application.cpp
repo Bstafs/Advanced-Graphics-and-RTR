@@ -24,11 +24,13 @@ DirectX::XMFLOAT4 g_EyePosition(0.0f, 0, -3, 1.0f);
 HRESULT		InitWindow(HINSTANCE hInstance, int nCmdShow);
 HRESULT		InitDevice();
 HRESULT		InitMesh();
-HRESULT		InitWorld(int width, int height);
+HRESULT		InitWorld(int width, int height, HWND hwnd);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 void		Render();
 void Update();
+bool InitDirectInput(HINSTANCE hInstance);
+void DetectInput(double deltaTime);
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -71,10 +73,14 @@ Camera* g_pCurrentCamera;
 float currentPosZ = -3.0f;
 float currentPosX;
 float currentPosY = 3.0f;
-float rotationX;
+float rotationX = 0.0f;
+float rotationY = 0.0f;
 
-float g_camYaw = 0.0f;
-float g_camPitch = 0.0f;
+#include <dinput.h>
+
+IDirectInputDevice8* DIMouse;
+DIMOUSESTATE mouseLastState;
+LPDIRECTINPUT8 DirectInput;
 
 HRESULT hr;
 
@@ -95,6 +101,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 	if (FAILED(InitDevice()))
 	{
 		CleanupDevice();
+		return 0;
+	}
+
+	if (!InitDirectInput(hInstance))
+	{
+		MessageBox(0, L"Direct Input Initialization - Failed",
+			L"Error", MB_OK);
 		return 0;
 	}
 
@@ -318,7 +331,7 @@ HRESULT InitDevice()
 		sd.OutputWindow = g_hWnd;
 		sd.SampleDesc.Count = 1;
 		sd.SampleDesc.Quality = 0;
-		sd.Windowed = TRUE;
+		sd.Windowed = FALSE;
 
 		hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
 	}
@@ -388,7 +401,7 @@ HRESULT InitDevice()
 		return hr;
 	}
 
-	hr = InitWorld(width, height);
+	hr = InitWorld(width, height, g_hWnd);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -499,7 +512,7 @@ HRESULT		InitMesh()
 // ***************************************************************************************
 // InitWorld (Initialize)
 // ***************************************************************************************
-HRESULT		InitWorld(int width, int height)
+HRESULT		InitWorld(int width, int height, HWND hwnd)
 {
 	// Initialize the view matrix
 	//XMVECTOR Eye = XMLoadFloat4(&g_EyePosition);
@@ -509,6 +522,13 @@ HRESULT		InitWorld(int width, int height)
 
 	//// Initialize the projection matrix
 	//g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui_ImplWin32_Init(g_hWnd);
+	ImGui_ImplDX11_Init(g_pd3dDevice, g_pImmediateContext);
+	ImGui::StyleColorsClassic();
 
 	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -10.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
 	g_pCurrentCamera = g_pCamera0;
@@ -549,6 +569,9 @@ void CleanupDevice()
 	if (g_pImmediateContext1) g_pImmediateContext1->Release();
 	if (g_pImmediateContext) g_pImmediateContext->Release();
 
+	DIMouse->Unacquire();
+	DirectInput->Release();
+
 	ID3D11Debug* debugDevice = nullptr;
 	g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&debugDevice));
 
@@ -566,8 +589,16 @@ void CleanupDevice()
 //--------------------------------------------------------------------------------------
 // Called every time the application receives a message
 //--------------------------------------------------------------------------------------
+
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+	{
+		return true;
+	}
+
 	PAINTSTRUCT ps;
 	HDC hdc;
 
@@ -648,20 +679,17 @@ float calculateDeltaTime()
 	return deltaTime;
 }
 
-//--------------------------------------------------------------------------------------
-// Constantly Updates The Scene 
-//--------------------------------------------------------------------------------------
-void Update()
+bool InitDirectInput(HINSTANCE hInstance)
 {
-	float deltaTime = calculateDeltaTime(); // capped at 60 fps
-	if (deltaTime == 0.0f)
-		return;
+	hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION,	IID_IDirectInput8,(void**)&DirectInput,	NULL);
+	hr = DirectInput->CreateDevice(GUID_SysMouse, &DIMouse,	NULL);
+	hr = DIMouse->SetDataFormat(&c_dfDIMouse);
+	hr = DIMouse->SetCooperativeLevel(g_hWnd, DISCL_FOREGROUND | DISCL_NOWINKEY);
+	return true;
+}
 
-	if (GetAsyncKeyState('5'))
-	{
-		Debug::GetInstance().DebugNum(5);
-	}
-
+void DetectInput(double deltaTime)
+{
 	if (GetAsyncKeyState('W'))
 	{
 		currentPosZ += 0.1f * cos(rotationX);
@@ -672,28 +700,44 @@ void Update()
 		currentPosZ -= 0.1f * cos(rotationX);
 		currentPosX -= 0.1f * sin(rotationX);
 	}
-	if (GetAsyncKeyState('A'))
+
+	DIMOUSESTATE mouseState;
+
+	DIMouse->Acquire();
+
+	DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
+
+	if (mouseState.lX != mouseLastState.lX)
 	{
-		rotationX -= 0.05f;
+		rotationX += (mouseState.lX * 0.002f);
 	}
-	if (GetAsyncKeyState('D'))
+	if (mouseState.lY != mouseLastState.lY)
 	{
-		rotationX += 0.05f;
+		rotationY -= (mouseState.lY * 0.002f);
 	}
-	if (GetAsyncKeyState('Q'))
+	mouseLastState = mouseState;
+
+	return;
+}
+//--------------------------------------------------------------------------------------
+// Constantly Updates The Scene 
+//--------------------------------------------------------------------------------------
+void Update() 
+{
+	float deltaTime = calculateDeltaTime(); // capped at 60 fps
+	if (deltaTime == 0.0f)
+		return;
+
+
+	if (GetAsyncKeyState('5'))
 	{
-		currentPosY -= 0.05f;
-	}
-	if (GetAsyncKeyState('E'))
-	{
-		currentPosY += 0.05f;
+		Debug::GetInstance().DebugNum(5);
 	}
 
-	//TO DO 
-	//Set current position to mouse position to move the camera for X AND Y position
+	DetectInput(deltaTime);
 
 	g_pCamera0->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY, currentPosZ - cos(rotationX)));
-	g_pCamera0->SetLookAt(XMFLOAT3(currentPosX, 3.0f, currentPosZ));
+	g_pCamera0->SetLookAt(XMFLOAT3(currentPosX, rotationY, currentPosZ));
 	g_pCamera0->SetView();
 
 	g_GameObject.update(deltaTime, g_pImmediateContext);
@@ -740,6 +784,31 @@ void Render()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 
 	g_GameObject.draw(g_pImmediateContext);
+
+	// IMGUI
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Begin("Debug Window");
+
+	std::string PositionX = "Position X: " + std::to_string(currentPosX);
+	ImGui::Text(PositionX.c_str());
+
+	std::string PositionY = "Position Y: " + std::to_string(currentPosY);
+	ImGui::Text(PositionY.c_str());
+
+	std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
+	ImGui::Text(PositionZ.c_str());
+
+	ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
+	ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
+
+	ImGui::End();
+
+	ImGui::Render();
+
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);

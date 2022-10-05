@@ -1,4 +1,6 @@
 #pragma once
+#pragma comment (lib, "dinput8.lib")
+#pragma comment (lib, "dxguid.lib")
 
 #include <windows.h>
 #include <windowsx.h>
@@ -18,6 +20,10 @@
 
 #include "Debug.h"
 #include "Camera.h"
+
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_win32.h"
+#include "ImGui/imgui_impl_dx11.h"
 
 using namespace std;
 

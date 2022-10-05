@@ -20,3 +20,11 @@ void Debug::DebugNum(static int num)
 	OutputDebugStringA(sz);
 }
 
+void Debug::DebugCursor(static int x, static int y)
+{
+	char sz[1024] = { 0 };
+
+	sprintf_s(sz, " X Pos: %d \n\n Y Pos: %d", x, y);
+
+	OutputDebugStringA(sz);
+}

@@ -38,7 +38,9 @@ public:
 	ID3D11Buffer* getMaterialConstantBuffer() { return m_pMaterialConstantBuffer; }
 
 	XMFLOAT3 getPosition() { return m_position; }
-	void								setPosition(XMFLOAT3 position);
+	float getPosition(float x, float y, float z) { return x = m_position.x, y = m_position.y, z = m_position.z; }
+	void setPosition(XMFLOAT3 position);
+
 
 private:
 
