@@ -1,5 +1,11 @@
 #include "Camera.h"
 
+#include <dinput.h>
+
+IDirectInputDevice8* DIMouse;
+DIMOUSESTATE mouseLastState;
+LPDIRECTINPUT8 DirectInput;
+
 Camera::Camera(XMFLOAT3 position, XMFLOAT3 at, XMFLOAT3 up, FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth)
 {
 	_eye = position;
@@ -21,6 +27,8 @@ void Camera::Update()
 {
 
 }
+
+
 
 void Camera::Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth)
 {

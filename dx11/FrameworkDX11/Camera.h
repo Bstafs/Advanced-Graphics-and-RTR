@@ -1,5 +1,6 @@
 #pragma once
-
+#pragma comment (lib, "dinput8.lib")
+#pragma comment (lib, "dxguid.lib")
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 #include <directxmath.h>
