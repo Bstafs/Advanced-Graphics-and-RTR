@@ -27,7 +27,7 @@ HRESULT		InitMesh();
 HRESULT		InitWorld(int width, int height);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-void		Draw();
+void		Render();
 void Update();
 
 
@@ -101,7 +101,7 @@ int WINAPI wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         }
         else
         {
-            Draw();
+            Render();
             Update();
         }
     }
@@ -688,7 +688,7 @@ void Update()
 //--------------------------------------------------------------------------------------
 // Render a frame
 //--------------------------------------------------------------------------------------
-void Draw()
+void Render()
 {
     // Clear the back buffer
     g_pImmediateContext->ClearRenderTargetView( g_pRenderTargetView, Colors::MidnightBlue );
