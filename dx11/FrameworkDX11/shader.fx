@@ -201,11 +201,12 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-	txNormal.Sample(samLinear, IN.Tex);
+    float4 bumMap = txNormal.Sample(samLinear, IN.Tex);
 
-    float4 bumMap = txNormal.Sample(sameLinear, In.Normal);
+	bumMap = (bumMap * 2.0f) - 1.0f;
+	bumMap = float4(normalize(bumMap.xyz), 1); // XYZW
 
-	LightingResult lit = ComputeLighting(IN.worldPos, normalize(IN.Norm));
+	LightingResult lit = ComputeLighting(IN.worldPos, bumMap);
 
 	float4 texColor = { 1, 1, 1, 1 };
 
