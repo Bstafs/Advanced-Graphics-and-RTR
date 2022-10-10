@@ -45,6 +45,9 @@ public:
 	float getPosition(float x, float y, float z) { return x = m_position.x, y = m_position.y, z = m_position.z; }
 	void setPosition(XMFLOAT3 position);
 
+	XMFLOAT3							m_position;
+
+	bool isSpinning = false;
 
 private:
 
@@ -57,6 +60,5 @@ private:
 	ID3D11SamplerState* m_pSamplerLinear;
 	MaterialPropertiesConstantBuffer	m_material;
 	ID3D11Buffer* m_pMaterialConstantBuffer = nullptr;
-	XMFLOAT3							m_position;
 };
 

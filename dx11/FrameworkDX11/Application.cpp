@@ -483,7 +483,7 @@ HRESULT		InitMesh()
 	// Create the constant buffer
 	D3D11_BUFFER_DESC bd = {};
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(SimpleVertex) * 24;
+	bd.ByteWidth = sizeof(SimpleVertex) * 36;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.Usage = D3D11_USAGE_DEFAULT;
@@ -541,6 +541,10 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
+
+	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
+	LightDirection = XMVector3Normalize(LightDirection);
+	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
 	return S_OK;
 }
@@ -644,10 +648,6 @@ void setupLightForRender()
 	g_Lighting.ConstantAttenuation = 1.0f;
 	g_Lighting.LinearAttenuation = 1;
 	g_Lighting.QuadraticAttenuation = 1;
-
-	XMVECTOR LightDirection = XMVectorSet(-g_Lighting.Position.x, -g_Lighting.Position.y, -g_Lighting.Position.z, 0.0f);
-	LightDirection = XMVector3Normalize(LightDirection);
-	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
 	LightPropertiesConstantBuffer lightProperties;
 	lightProperties.EyePosition = g_Lighting.Position;
@@ -809,9 +809,24 @@ void Render()
 	}
 	if (ImGui::CollapsingHeader("Lighting"))
 	{
-		ImGui::DragFloat("Light X", &g_Lighting.Position.x, 0.05f, -100.0f, 100.0f);
-		ImGui::DragFloat("Light Y", &g_Lighting.Position.y, 0.05f, -100.0f, 100.0f);
-		ImGui::DragFloat("Light Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
+		ImGui::Text("Positions");
+		ImGui::DragFloat("Light Position X", &g_Lighting.Position.x, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Position Y", &g_Lighting.Position.y, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Position Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
+
+		ImGui::Text("Directions");
+		ImGui::DragFloat("Light Direction X", &g_Lighting.Direction.x, 0.05f, -1.0f, 1.0f);
+		ImGui::DragFloat("Light Direction Y", &g_Lighting.Direction.y, 0.05f, -1.0, 1.0f);
+		ImGui::DragFloat("Light Direction Z", &g_Lighting.Direction.z, 0.05f, -1.0f, 1.0f);
+	}
+	if (ImGui::CollapsingHeader("Objects"))
+	{
+		ImGui::Text("Spin");
+		if(ImGui::Checkbox("Spinning", &g_GameObject.isSpinning));
+		ImGui::Text("Direction");
+		ImGui::DragFloat("Object Position X", &g_GameObject.m_position.x, 0.025f);
+		ImGui::DragFloat("Object Position Y", &g_GameObject.m_position.y, 0.025f);
+		ImGui::DragFloat("Object Position Z", &g_GameObject.m_position.z, 0.025f);
 	}
 
 	ImGui::End();

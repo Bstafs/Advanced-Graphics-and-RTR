@@ -209,7 +209,6 @@ PS_INPUT VS(VS_INPUT input)
 
 	float3 vertexToEye = EyePosition - output.worldPos.xyz;
 	float3 vertexToLight = Lights[0].Position - output.worldPos.xyz;
-
 	// TBN matrix
 	float3 T = normalize(mul(input.Tang, World));
 	float3 B = normalize(mul(input.BiNorm, World));
