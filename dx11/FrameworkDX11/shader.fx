@@ -19,8 +19,14 @@ cbuffer ConstantBuffer : register(b0)
 
 Texture2D txDiffuse : register(t0);
 Texture2D txNormal : register(t1);
-SamplerState samLinear : register(s0);
+SamplerState samLinear : register(s0)
+{
+	Filter = ANISOTROPIC;
+	MaxAnisotropy = 4;
 
+	AddressU = WRAP;
+	AddressV = WRAP;
+};
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -83,6 +89,8 @@ struct VS_INPUT
 	float4 Pos : POSITION;
 	float3 Norm : NORMAL;
 	float2 Tex : TEXCOORD0;
+	float3 Tang : TANGENT;
+	float3 BiNorm : BINORMAL;
 };
 
 struct PS_INPUT
@@ -90,6 +98,8 @@ struct PS_INPUT
 	float4 Pos : SV_POSITION;
 	float4 worldPos : POSITION;
 	float3 Norm : NORMAL;
+	float3 eyeVectorTS : EYEVECTORTS;
+	float3 lightVectorTS : LIGHTVECTORTS;
 	float2 Tex : TEXCOORD0;
 };
 
@@ -175,6 +185,12 @@ LightingResult ComputeLighting(float4 vertexPos, float3 N)
 	return totalResult;
 }
 
+float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
+{
+	float3 tangentSpaceNormal = normalize(mul(VectorV, TBN_inv));
+	return tangentSpaceNormal;
+}
+
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -186,14 +202,27 @@ PS_INPUT VS(VS_INPUT input)
 	output.Pos = mul(output.Pos, View);
 	output.Pos = mul(output.Pos, Projection);
 
-	// multiply the normal by the world transform (to go from model space to world space)
-	output.Norm = mul(float4(input.Norm, 0), World).xyz;
+	//// multiply the normal by the world transform (to go from model space to world space)
+	//output.Norm = mul(float4(input.Norm, 0), World).xyz;
 
 	output.Tex = input.Tex;
 
+	float3 vertexToEye = EyePosition - output.worldPos.xyz;
+	float3 vertexToLight = Lights[0].Position - output.worldPos.xyz;
+
+	// TBN matrix
+	float3 T = normalize(mul(input.Tang, World));
+	float3 B = normalize(mul(input.BiNorm, World));
+	float3 N = normalize(mul(input.Norm, World));
+	float3x3 TBN = float3x3(T, B, N);
+	float3x3 TBN_inv = transpose(TBN);
+
+	output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
+
+	output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
+
 	return output;
 }
-
 
 //--------------------------------------------------------------------------------------
 // Pixel Shader
@@ -201,7 +230,7 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-    float4 bumMap = txNormal.Sample(samLinear, IN.Tex);
+	float4 bumMap = txNormal.Sample(samLinear, IN.Tex);
 
 	bumMap = (bumMap * 2.0f) - 1.0f;
 	bumMap = float4(normalize(bumMap.xyz), 1); // XYZW

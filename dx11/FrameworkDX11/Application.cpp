@@ -31,6 +31,8 @@ void		Render();
 void UpdateCamera();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
+
+
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
@@ -71,8 +73,8 @@ Camera* g_pCamera0;
 Camera* g_pCurrentCamera;
 
 float currentPosZ = -3.0f;
-float currentPosX;
-float currentPosY = 3.0f;
+float currentPosX = 0.0f;
+float currentPosY = 0.0f;
 float rotationX = 0.0f;
 float rotationY = 0.0f;
 
@@ -446,6 +448,8 @@ HRESULT		InitMesh()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT , D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT , D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	UINT numElements = ARRAYSIZE(layout);
 
@@ -529,7 +533,11 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pImmediateContext);
 	ImGui::StyleColorsClassic();
 
-	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -10.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
+	g_Lighting.Position.x = 0.0f;
+	g_Lighting.Position.y = 0.0f;
+	g_Lighting.Position.z = 0.0f;
+
+	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -3.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
@@ -629,7 +637,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 void setupLightForRender()
 {
-
 	g_Lighting.Enabled = static_cast<int>(true);
 	g_Lighting.LightType = DirectionalLight;
 	g_Lighting.Color = XMFLOAT4(Colors::White);
@@ -737,7 +744,6 @@ void UpdateCamera()
 
 	g_GameObject.update(deltaTime, g_pImmediateContext);
 
-
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
 }
@@ -766,8 +772,6 @@ void Render()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-
-
 	// Render the cube
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
@@ -777,8 +781,6 @@ void Render()
 
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-
-
 
 	g_GameObject.draw(g_pImmediateContext);
 
@@ -807,9 +809,9 @@ void Render()
 	}
 	if (ImGui::CollapsingHeader("Lighting"))
 	{
-		ImGui::DragFloat("Light X", &g_Lighting.Position.x, 0.05f, -5.0f, 5.0f);
-		ImGui::DragFloat("Light Y", &g_Lighting.Position.y, 0.05f, -5.0f, 5.0f);
-		ImGui::DragFloat("Light Z", &g_Lighting.Position.z, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light X", &g_Lighting.Position.x, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Y", &g_Lighting.Position.y, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
 	}
 
 	ImGui::End();
@@ -821,6 +823,3 @@ void Render()
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
 }
-
-
-
