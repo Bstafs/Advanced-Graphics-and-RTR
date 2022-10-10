@@ -387,6 +387,7 @@
     <ClCompile Include="Vector3.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="Resources\conenormal.dds" />
     <Image Include="Resources\stone.dds" />
   </ItemGroup>
   <ItemGroup>

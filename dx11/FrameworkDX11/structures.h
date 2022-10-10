@@ -75,7 +75,7 @@ struct Light
 		 float quadratic_attenuation , int light_type , int enabled)
 		: Position(position.x , position.y , position.z , position.w)
 		, Direction(direction.x, direction.y, direction.z, direction.w)
-		, Color(1.0f, 1.0f, 1.0f, 1.0f)
+		, Color(colour.x, colour.y, colour.z, colour.z)
 		, SpotAngle(spot_angle)
 		, ConstantAttenuation(constant_attenuation)
 		, LinearAttenuation(linear_attenuation)

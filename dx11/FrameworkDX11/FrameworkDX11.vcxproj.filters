@@ -73,6 +73,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\stone.dds" />
+    <Image Include="Resources\conenormal.dds" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ImGui">

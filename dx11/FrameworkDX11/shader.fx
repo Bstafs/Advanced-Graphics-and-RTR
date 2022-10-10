@@ -9,7 +9,7 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer ConstantBuffer : register( b0 )
+cbuffer ConstantBuffer : register(b0)
 {
 	matrix World;
 	matrix View;
@@ -18,7 +18,9 @@ cbuffer ConstantBuffer : register( b0 )
 }
 
 Texture2D txDiffuse : register(t0);
+Texture2D txNormal : register(t1);
 SamplerState samLinear : register(s0);
+
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -73,19 +75,19 @@ cbuffer LightProperties : register(b2)
 	float4 GlobalAmbient;               // 16 bytes
 										//----------------------------------- (16 byte boundary)
 	Light Lights[MAX_LIGHTS];           // 80 * 8 = 640 bytes
-}; 
+};
 
 //--------------------------------------------------------------------------------------
 struct VS_INPUT
 {
-    float4 Pos : POSITION;
+	float4 Pos : POSITION;
 	float3 Norm : NORMAL;
 	float2 Tex : TEXCOORD0;
 };
 
 struct PS_INPUT
 {
-    float4 Pos : SV_POSITION;
+	float4 Pos : SV_POSITION;
 	float4 worldPos : POSITION;
 	float3 Norm : NORMAL;
 	float2 Tex : TEXCOORD0;
@@ -100,7 +102,7 @@ float4 DoDiffuse(Light light, float3 L, float3 N)
 
 float4 DoSpecular(Light lightObject, float3 vertexToEye, float3 lightDirectionToVertex, float3 Normal)
 {
-	float4 lightDir = float4(normalize(-lightDirectionToVertex),1);
+	float4 lightDir = float4(normalize(-lightDirectionToVertex), 1);
 	vertexToEye = normalize(vertexToEye);
 
 	float lightIntensity = saturate(dot(Normal, lightDir));
@@ -131,7 +133,7 @@ LightingResult DoPointLight(Light light, float3 vertexToEye, float4 vertexPos, f
 
 	float3 LightDirectionToVertex = (vertexPos - light.Position).xyz;
 	float distance = length(LightDirectionToVertex);
-	LightDirectionToVertex = LightDirectionToVertex  / distance;
+	LightDirectionToVertex = LightDirectionToVertex / distance;
 
 	float3 vertexToLight = (light.Position - vertexPos).xyz;
 	distance = length(vertexToLight);
@@ -158,11 +160,11 @@ LightingResult ComputeLighting(float4 vertexPos, float3 N)
 	{
 		LightingResult result = { { 0, 0, 0, 0 },{ 0, 0, 0, 0 } };
 
-		if (!Lights[i].Enabled) 
+		if (!Lights[i].Enabled)
 			continue;
-		
+
 		result = DoPointLight(Lights[i], vertexToEye, vertexPos, N);
-		
+
 		totalResult.Diffuse += result.Diffuse;
 		totalResult.Specular += result.Specular;
 	}
@@ -176,20 +178,20 @@ LightingResult ComputeLighting(float4 vertexPos, float3 N)
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
-PS_INPUT VS( VS_INPUT input )
+PS_INPUT VS(VS_INPUT input)
 {
-    PS_INPUT output = (PS_INPUT)0;
-    output.Pos = mul( input.Pos, World );
+	PS_INPUT output = (PS_INPUT)0;
+	output.Pos = mul(input.Pos, World);
 	output.worldPos = output.Pos;
-    output.Pos = mul( output.Pos, View );
-    output.Pos = mul( output.Pos, Projection );
+	output.Pos = mul(output.Pos, View);
+	output.Pos = mul(output.Pos, Projection);
 
 	// multiply the normal by the world transform (to go from model space to world space)
 	output.Norm = mul(float4(input.Norm, 0), World).xyz;
 
 	output.Tex = input.Tex;
-    
-    return output;
+
+	return output;
 }
 
 
@@ -199,6 +201,10 @@ PS_INPUT VS( VS_INPUT input )
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
+	txNormal.Sample(samLinear, IN.Tex);
+
+    float4 bumMap = txNormal.Sample(sameLinear, In.Normal);
+
 	LightingResult lit = ComputeLighting(IN.worldPos, normalize(IN.Norm));
 
 	float4 texColor = { 1, 1, 1, 1 };

@@ -57,7 +57,7 @@ ID3D11Buffer* g_pConstantBuffer = nullptr;
 
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
 
-Light					_Lighting;
+Light					g_Lighting;
 XMMATRIX                g_View;
 XMMATRIX                g_Projection;
 
@@ -554,6 +554,9 @@ void CleanupDevice()
 	if (g_pImmediateContext1) g_pImmediateContext1->Flush();
 	g_pImmediateContext->Flush();
 
+	DIMouse->Unacquire();
+	DirectInput->Release();
+
 	if (g_pLightConstantBuffer)	g_pLightConstantBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pConstantBuffer) g_pConstantBuffer->Release();
@@ -566,9 +569,6 @@ void CleanupDevice()
 	if (g_pSwapChain) g_pSwapChain->Release();
 	if (g_pImmediateContext1) g_pImmediateContext1->Release();
 	if (g_pImmediateContext) g_pImmediateContext->Release();
-
-	DIMouse->Unacquire();
-	DirectInput->Release();
 
 	ID3D11Debug* debugDevice = nullptr;
 	g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&debugDevice));
@@ -630,21 +630,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 void setupLightForRender()
 {
 
-	_Lighting.Enabled = static_cast<int>(true);
-	_Lighting.LightType = DirectionalLight;
-	_Lighting.Color = XMFLOAT4(Colors::White);
-	_Lighting.SpotAngle = XMConvertToRadians(45.0f);
-	_Lighting.ConstantAttenuation = 1.0f;
-	_Lighting.LinearAttenuation = 1;
-	_Lighting.QuadraticAttenuation = 1;
+	g_Lighting.Enabled = static_cast<int>(true);
+	g_Lighting.LightType = DirectionalLight;
+	g_Lighting.Color = XMFLOAT4(Colors::White);
+	g_Lighting.SpotAngle = XMConvertToRadians(45.0f);
+	g_Lighting.ConstantAttenuation = 1.0f;
+	g_Lighting.LinearAttenuation = 1;
+	g_Lighting.QuadraticAttenuation = 1;
 
-	XMVECTOR LightDirection = XMVectorSet(-_Lighting.Position.x, -_Lighting.Position.y, -_Lighting.Position.z, 0.0f);
+	XMVECTOR LightDirection = XMVectorSet(-g_Lighting.Position.x, -g_Lighting.Position.y, -g_Lighting.Position.z, 0.0f);
 	LightDirection = XMVector3Normalize(LightDirection);
-	XMStoreFloat4(&_Lighting.Direction, LightDirection);
+	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
 	LightPropertiesConstantBuffer lightProperties;
-	lightProperties.EyePosition = _Lighting.Position;
-	lightProperties.Lights[0] = _Lighting;
+	lightProperties.EyePosition = g_Lighting.Position;
+	lightProperties.Lights[0] = g_Lighting;
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 }
 
@@ -688,19 +688,12 @@ void DetectInput(double deltaTime)
 	if (GetAsyncKeyState('W'))
 	{
 		currentPosZ += 0.1f * cos(rotationX);
+		currentPosX += 0.1f * sin(rotationX);
 	}
 	if (GetAsyncKeyState('S'))
 	{
 		currentPosZ -= 0.1f * cos(rotationX);
-	}
-
-	if (GetAsyncKeyState('A'))
-	{
 		currentPosX -= 0.1f * sin(rotationX);
-	}
-	if (GetAsyncKeyState('D'))
-	{
-		currentPosX += 0.1f * sin(rotationX);
 	}
 
 	DIMOUSESTATE mouseState;
@@ -738,9 +731,9 @@ void UpdateCamera()
 
 	DetectInput(deltaTime);
 
-	g_pCamera0->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY, currentPosZ - cos(rotationX)));
-	g_pCamera0->SetLookAt(XMFLOAT3(currentPosX, rotationY, currentPosZ));
-	g_pCamera0->SetView();
+	g_pCurrentCamera->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY, currentPosZ - cos(rotationX)));
+	g_pCurrentCamera->SetLookAt(XMFLOAT3(currentPosX, rotationY, currentPosZ));
+	g_pCurrentCamera->SetView();
 
 	g_GameObject.update(deltaTime, g_pImmediateContext);
 
@@ -781,6 +774,7 @@ void Render()
 
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 
@@ -813,10 +807,11 @@ void Render()
 	}
 	if (ImGui::CollapsingHeader("Lighting"))
 	{
-		ImGui::DragFloat("Light X", &_Lighting.Position.x, 0.05f, -5.0f, 5.0f);
-		ImGui::DragFloat("Light Y", &_Lighting.Position.y, 0.05f, -5.0f, 5.0f);
-		ImGui::DragFloat("Light Z", &_Lighting.Position.z, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light X", &g_Lighting.Position.x, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light Y", &g_Lighting.Position.y, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light Z", &g_Lighting.Position.z, 0.05f, -5.0f, 5.0f);
 	}
+
 	ImGui::End();
 
 	ImGui::Render();
