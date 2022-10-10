@@ -70,6 +70,19 @@ struct Light
 		, Enabled(0)
 	{}
 
+	Light(DirectX::XMFLOAT4 position , DirectX::XMFLOAT4 direction , DirectX::XMFLOAT4 colour ,
+		 float spot_angle , float constant_attenuation , float linear_attenuation , 
+		 float quadratic_attenuation , int light_type , int enabled)
+		: Position(position.x , position.y , position.z , position.w)
+		, Direction(direction.x, direction.y, direction.z, direction.w)
+		, Color(1.0f, 1.0f, 1.0f, 1.0f)
+		, SpotAngle(spot_angle)
+		, ConstantAttenuation(constant_attenuation)
+		, LinearAttenuation(linear_attenuation)
+		, QuadraticAttenuation(quadratic_attenuation)
+		, LightType(light_type)
+		, Enabled(enabled)
+	{}
 	DirectX::XMFLOAT4    Position;
 	//----------------------------------- (16 byte boundary)
 	DirectX::XMFLOAT4    Direction;

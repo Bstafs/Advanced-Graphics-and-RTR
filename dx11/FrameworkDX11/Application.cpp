@@ -28,7 +28,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 void		Render();
-void Update();
+void UpdateCamera();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
 //--------------------------------------------------------------------------------------
@@ -57,6 +57,7 @@ ID3D11Buffer* g_pConstantBuffer = nullptr;
 
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
 
+Light					_Lighting;
 XMMATRIX                g_View;
 XMMATRIX                g_Projection;
 
@@ -122,7 +123,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		else
 		{
 			Render();
-			Update();
+			UpdateCamera();
 		}
 	}
 
@@ -628,24 +629,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 void setupLightForRender()
 {
-	Light light;
-	light.Enabled = static_cast<int>(true);
-	light.LightType = DirectionalLight;
-	light.Color = XMFLOAT4(Colors::White);
-	light.SpotAngle = XMConvertToRadians(45.0f);
-	light.ConstantAttenuation = 1.0f;
-	light.LinearAttenuation = 1;
-	light.QuadraticAttenuation = 1;
 
-	// set up the light
-	light.Position = LightPosition;
-	XMVECTOR LightDirection = XMVectorSet(-LightPosition.x, -LightPosition.y, -LightPosition.z, 0.0f);
+	_Lighting.Enabled = static_cast<int>(true);
+	_Lighting.LightType = DirectionalLight;
+	_Lighting.Color = XMFLOAT4(Colors::White);
+	_Lighting.SpotAngle = XMConvertToRadians(45.0f);
+	_Lighting.ConstantAttenuation = 1.0f;
+	_Lighting.LinearAttenuation = 1;
+	_Lighting.QuadraticAttenuation = 1;
+
+	XMVECTOR LightDirection = XMVectorSet(-_Lighting.Position.x, -_Lighting.Position.y, -_Lighting.Position.z, 0.0f);
 	LightDirection = XMVector3Normalize(LightDirection);
-	XMStoreFloat4(&light.Direction, LightDirection);
+	XMStoreFloat4(&_Lighting.Direction, LightDirection);
 
 	LightPropertiesConstantBuffer lightProperties;
-	lightProperties.EyePosition = LightPosition;
-	lightProperties.Lights[0] = light;
+	lightProperties.EyePosition = _Lighting.Position;
+	lightProperties.Lights[0] = _Lighting;
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 }
 
@@ -689,12 +688,19 @@ void DetectInput(double deltaTime)
 	if (GetAsyncKeyState('W'))
 	{
 		currentPosZ += 0.1f * cos(rotationX);
-		currentPosX += 0.1f * sin(rotationX);
 	}
 	if (GetAsyncKeyState('S'))
 	{
 		currentPosZ -= 0.1f * cos(rotationX);
+	}
+
+	if (GetAsyncKeyState('A'))
+	{
 		currentPosX -= 0.1f * sin(rotationX);
+	}
+	if (GetAsyncKeyState('D'))
+	{
+		currentPosX += 0.1f * sin(rotationX);
 	}
 
 	DIMOUSESTATE mouseState;
@@ -719,7 +725,7 @@ void DetectInput(double deltaTime)
 //--------------------------------------------------------------------------------------
 // Constantly Updates The Scene 
 //--------------------------------------------------------------------------------------
-void Update()
+void UpdateCamera()
 {
 	float deltaTime = calculateDeltaTime(); // capped at 60 fps
 	if (deltaTime == 0.0f)
@@ -767,7 +773,7 @@ void Render()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-	setupLightForRender();
+
 
 	// Render the cube
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
@@ -786,23 +792,31 @@ void Render()
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-
+	setupLightForRender();
 	ImGui::Begin("Debug Window");
 
-	ImGui::SetWindowSize(ImVec2(500.0f,200.0f));
+	ImGui::SetWindowSize(ImVec2(500.0f, 200.0f));
 
-	std::string PositionX = "Position X: " + std::to_string(currentPosX);
-	ImGui::Text(PositionX.c_str());
+	if (ImGui::CollapsingHeader("Camera"))
+	{
+		std::string PositionX = "Position X: " + std::to_string(currentPosX);
+		ImGui::Text(PositionX.c_str());
 
-	std::string PositionY = "Position Y: " + std::to_string(currentPosY);
-	ImGui::Text(PositionY.c_str());
+		std::string PositionY = "Position Y: " + std::to_string(currentPosY);
+		ImGui::Text(PositionY.c_str());
 
-	std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
-	ImGui::Text(PositionZ.c_str());
+		std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
+		ImGui::Text(PositionZ.c_str());
 
-	ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
-	ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
-
+		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
+		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
+	}
+	if (ImGui::CollapsingHeader("Lighting"))
+	{
+		ImGui::DragFloat("Light X", &_Lighting.Position.x, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light Y", &_Lighting.Position.y, 0.05f, -5.0f, 5.0f);
+		ImGui::DragFloat("Light Z", &_Lighting.Position.z, 0.05f, -5.0f, 5.0f);
+	}
 	ImGui::End();
 
 	ImGui::Render();
