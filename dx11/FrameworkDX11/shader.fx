@@ -231,12 +231,12 @@ PS_INPUT VS(VS_INPUT input)
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
 	// Change the range from (0,1) to (-1, 1)
-	float4 bumMap = txNormal.Sample(samLinear, IN.Tex);
+	float4 bumpMap = txNormal.Sample(samLinear, IN.Tex);
 
-	bumMap = (bumMap * 2.0f) - 1.0f;
-	bumMap = float4(normalize(bumMap.xyz), 1); // XYZW
+	bumpMap = (bumpMap * 2.0f) - 1.0f;
+	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
 
-	LightingResult lit = ComputeLighting(IN.worldPos, bumMap);
+	LightingResult lit = ComputeLighting(IN.worldPos, bumpMap);
 
 	float4 texColor = { 1, 1, 1, 1 };
 
