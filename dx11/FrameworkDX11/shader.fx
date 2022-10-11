@@ -98,9 +98,10 @@ struct PS_INPUT
 	float4 Pos : SV_POSITION;
 	float4 worldPos : POSITION;
 	float3 Norm : NORMAL;
+	float2 Tex : TEXCOORD0;
+
 	float3 eyeVectorTS : EYEVECTORTS;
 	float3 lightVectorTS : LIGHTVECTORTS;
-	float2 Tex : TEXCOORD0;
 };
 
 
@@ -229,6 +230,7 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
+	// Change the range from (0,1) to (-1, 1)
 	float4 bumMap = txNormal.Sample(samLinear, IN.Tex);
 
 	bumMap = (bumMap * 2.0f) - 1.0f;
