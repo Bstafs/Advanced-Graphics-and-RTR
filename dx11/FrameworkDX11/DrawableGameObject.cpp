@@ -10,6 +10,8 @@ DrawableGameObject::DrawableGameObject()
 	m_pVertexBuffer = nullptr;
 	m_pIndexBuffer = nullptr;
 	m_pTextureResourceView = nullptr;
+	m_pNormalResourceView = nullptr;
+	m_pParraResourceView = nullptr;
 	m_pSamplerLinear = nullptr;
 
 	// Initialize the world matrix
@@ -35,6 +37,14 @@ void DrawableGameObject::cleanup()
 	if (m_pTextureResourceView)
 		m_pTextureResourceView->Release();
 	m_pTextureResourceView = nullptr;
+
+	if (m_pNormalResourceView)
+		m_pNormalResourceView->Release();
+	m_pNormalResourceView = nullptr;
+
+	if (m_pParraResourceView)
+		m_pParraResourceView->Release();
+	m_pParraResourceView = nullptr;
 
 	if (m_pSamplerLinear)
 		m_pSamplerLinear->Release();
@@ -350,11 +360,15 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// load and setup textures
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\stone.dds", nullptr, &m_pTextureResourceView);
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\color.dds", nullptr, &m_pTextureResourceView);
 	if (FAILED(hr))
 		return hr;
 
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\conenormal.dds", nullptr, &m_pNormalResourceView);
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\normals.dds", nullptr, &m_pNormalResourceView);
+	if (FAILED(hr))
+		return hr;
+
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\displacement.dds", nullptr, &m_pParraResourceView);
 	if (FAILED(hr))
 		return hr;
 
@@ -418,6 +432,7 @@ void DrawableGameObject::draw(ID3D11DeviceContext* pContext)
 
 	pContext->PSSetShaderResources(0, 1, &m_pTextureResourceView);
 	pContext->PSSetShaderResources(1, 1, &m_pNormalResourceView);
+	pContext->PSSetShaderResources(2, 1, &m_pParraResourceView);
 	pContext->PSSetSamplers(0, 1, &m_pSamplerLinear);
 
 	pContext->DrawIndexed(NUM_VERTICES, 0, 0);

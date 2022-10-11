@@ -770,6 +770,7 @@ void Render()
 	cb1.mView = XMMatrixTranspose(view);
 	cb1.mProjection = XMMatrixTranspose(projection);
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 	// Render the cube

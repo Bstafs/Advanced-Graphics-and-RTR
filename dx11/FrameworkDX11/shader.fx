@@ -15,10 +15,21 @@ cbuffer ConstantBuffer : register(b0)
 	matrix View;
 	matrix Projection;
 	float4 vOutputColor;
+
+	float fHeightScale;
+	int nMinSamples;
+	int nMaxSamples;
+	float pad1;
+
+	float fNearDepth;
+	float fFarDepth;
+	float2 pad0;
 }
 
 Texture2D txDiffuse : register(t0);
 Texture2D txNormal : register(t1);
+Texture2D txParrallax : register(t2);
+
 SamplerState samLinear : register(s0)
 {
 	Filter = ANISOTROPIC;
@@ -37,17 +48,17 @@ SamplerState samLinear : register(s0)
 struct _Material
 {
 	float4  Emissive;       // 16 bytes
-							//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float4  Ambient;        // 16 bytes
-							//------------------------------------(16 byte boundary)
+	//------------------------------------(16 byte boundary)
 	float4  Diffuse;        // 16 bytes
-							//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float4  Specular;       // 16 bytes
-							//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float   SpecularPower;  // 4 bytes
 	bool    UseTexture;     // 4 bytes
 	float2  Padding;        // 8 bytes
-							//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 };  // Total:               // 80 bytes ( 5 * 16 )
 
 cbuffer MaterialProperties : register(b1)
@@ -58,28 +69,28 @@ cbuffer MaterialProperties : register(b1)
 struct Light
 {
 	float4      Position;               // 16 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float4      Direction;              // 16 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float4      Color;                  // 16 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float       SpotAngle;              // 4 bytes
 	float       ConstantAttenuation;    // 4 bytes
 	float       LinearAttenuation;      // 4 bytes
 	float       QuadraticAttenuation;   // 4 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	int         LightType;              // 4 bytes
 	bool        Enabled;                // 4 bytes
 	int2        Padding;                // 8 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 };  // Total:                           // 80 bytes (5 * 16)
 
 cbuffer LightProperties : register(b2)
 {
 	float4 EyePosition;                 // 16 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	float4 GlobalAmbient;               // 16 bytes
-										//----------------------------------- (16 byte boundary)
+	//----------------------------------- (16 byte boundary)
 	Light Lights[MAX_LIGHTS];           // 80 * 8 = 640 bytes
 };
 
@@ -192,6 +203,77 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 	return tangentSpaceNormal;
 }
 
+float2 SimpleParallax(float2 texCoord, float3 toEye)
+{
+	float height = txDiffuse.Sample(samLinear, texCoord).r;
+	//assumed that scaled height = -biased height -> h * s + b = h * s - s = s(h - 1)
+	//because in presentation it states that reasonable scale value = 0.02, and bias = [-0.01, -0.02]
+	float heightSB = fHeightScale * (height - 1.0);
+
+	float2 parallax = toEye.xy * heightSB;
+
+	return (texCoord + parallax);
+}
+
+float2 ParallaxOcclusion(float2 texCoord, float3 normal, float3 toEye)
+{
+	//set up toEye vector in tangent space
+	float3 toEyeTS = -toEye;
+
+	//calculate the maximum of parallax shift
+	float2 parallaxLimit = fHeightScale * toEyeTS.xy;
+
+	//calculate number of samples
+	//normal = (0, 0, 1) in tangent space essentially, if dot product converges to 0, take more samples because it means view vec and normal are perpendicular
+	int numSamples = (int)lerp(nMaxSamples, nMinSamples, abs(dot(toEyeTS, normal)));
+	float zStep = 1.0f / (float)numSamples;
+
+	float2 heightStep = zStep * parallaxLimit;
+
+	float2 dx = ddx(texCoord);
+	float2 dy = ddy(texCoord);
+
+	//init loop variables
+	int currSample = 0;
+	float2 currParallax = float2(0, 0);
+	float2 prevParallax = float2(0, 0);
+	float2 finalParallax = float2(0, 0);
+	float currZ = 1.0f - heightStep;
+	float prevZ = 1.0f;
+	float currHeight = 0.0f;
+	float prevHeight = 0.0f;
+
+	while (currSample < numSamples + 1)
+	{
+		currHeight = txDiffuse.SampleGrad(samLinear, texCoord + currParallax, dx, dy).r;
+
+		if (currHeight > currZ)
+		{
+			float n = prevHeight - prevZ;
+			float d = prevHeight - currHeight - prevZ + currZ;
+			float ratio = n / d;
+
+			finalParallax = prevParallax + ratio * heightStep;
+
+			currSample = numSamples + 1;
+		}
+		else
+		{
+			++currSample;
+
+			prevParallax = currParallax;
+			prevZ = currZ;
+			prevHeight = currHeight;
+
+			currParallax += heightStep;
+
+			currZ -= zStep;
+		}
+	}
+
+	return (texCoord + finalParallax);
+}
+
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -204,22 +286,9 @@ PS_INPUT VS(VS_INPUT input)
 	output.Pos = mul(output.Pos, Projection);
 
 	//// multiply the normal by the world transform (to go from model space to world space)
-	//output.Norm = mul(float4(input.Norm, 0), World).xyz;
+	output.Norm = mul(float4(input.Norm, 0), World).xyz;
 
 	output.Tex = input.Tex;
-
-	float3 vertexToEye = EyePosition - output.worldPos.xyz;
-	float3 vertexToLight = Lights[0].Position - output.worldPos.xyz;
-	// TBN matrix
-	float3 T = normalize(mul(input.Tang, World));
-	float3 B = normalize(mul(input.BiNorm, World));
-	float3 N = normalize(mul(input.Norm, World));
-	float3x3 TBN = float3x3(T, B, N);
-	float3x3 TBN_inv = transpose(TBN);
-
-	output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
-
-	output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
 
 	return output;
 }
@@ -236,23 +305,24 @@ float4 PS(PS_INPUT IN) : SV_TARGET
 	bumpMap = (bumpMap * 2.0f) - 1.0f;
 	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
 
-	LightingResult lit = ComputeLighting(IN.worldPos, bumpMap);
+		LightingResult lit = ComputeLighting(IN.worldPos, bumpMap);
 
-	float4 texColor = { 1, 1, 1, 1 };
+		float4 texColor = { 1, 1, 1, 1 };
 
-	float4 emissive = Material.Emissive;
-	float4 ambient = Material.Ambient * GlobalAmbient;
-	float4 diffuse = Material.Diffuse * lit.Diffuse;
-	float4 specular = Material.Specular * lit.Specular;
+		float4 emissive = Material.Emissive;
+		float4 ambient = Material.Ambient * GlobalAmbient;
+		float4 diffuse = Material.Diffuse * lit.Diffuse;
+		float4 specular = Material.Specular * lit.Specular;
 
-	if (Material.UseTexture)
-	{
-		texColor = txDiffuse.Sample(samLinear, IN.Tex);
-	}
+		if (Material.UseTexture)
+		{
+			texColor = txDiffuse.Sample(samLinear, IN.Tex);
+		}
 
-	float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
+		float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
 
-	return finalColor;
+	     return finalColor;
+	
 }
 
 //--------------------------------------------------------------------------------------
