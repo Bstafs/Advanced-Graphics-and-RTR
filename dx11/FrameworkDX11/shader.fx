@@ -19,7 +19,7 @@ cbuffer ConstantBuffer : register(b0)
 	float fHeightScale;
 	int nMinSamples;
 	int nMaxSamples;
-	float pad1;
+	int iEffectID;
 
 	float fNearDepth;
 	float fFarDepth;
@@ -110,9 +110,8 @@ struct PS_INPUT
 	float4 worldPos : POSITION;
 	float3 Norm : NORMAL;
 	float2 Tex : TEXCOORD0;
-
-	float3 eyeVectorTS : EYEVECTORTS;
-	float3 lightVectorTS : LIGHTVECTORTS;
+	float3 Tang : TANGENT;
+	float3 BiNorm : BINORMAL;
 };
 
 
@@ -171,9 +170,8 @@ LightingResult DoPointLight(Light light, float3 vertexToEye, float4 vertexPos, f
 	return result;
 }
 
-LightingResult ComputeLighting(float4 vertexPos, float3 N)
+LightingResult ComputeLighting(float4 vertexPos, float3 N, float3 vertexToEye)
 {
-	float3 vertexToEye = normalize(EyePosition - vertexPos).xyz;
 
 	LightingResult totalResult = { { 0, 0, 0, 0 },{ 0, 0, 0, 0 } };
 
@@ -203,75 +201,26 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 	return tangentSpaceNormal;
 }
 
-float2 SimpleParallax(float2 texCoord, float3 toEye)
+float3x3 ComputeTBNMatrix(float3 norm, float3 tang, float3 binorm)
 {
-	float height = txDiffuse.Sample(samLinear, texCoord).r;
-	//assumed that scaled height = -biased height -> h * s + b = h * s - s = s(h - 1)
-	//because in presentation it states that reasonable scale value = 0.02, and bias = [-0.01, -0.02]
-	float heightSB = fHeightScale * (height - 1.0);
+	float3 N = norm;
+	float3 T = normalize(tang - dot(tang, N) * N);
+	float3 B = normalize(binorm - dot(binorm, tang) * tang);
 
-	float2 parallax = toEye.xy * heightSB;
+	float3x3 TBN = float3x3(T, B, N);
 
-	return (texCoord + parallax);
+	return TBN;
 }
 
-float2 ParallaxOcclusion(float2 texCoord, float3 normal, float3 toEye)
+float4 NormalMapping(float2 texCoord)
 {
-	//set up toEye vector in tangent space
-	float3 toEyeTS = -toEye;
+	float4 bumpMap = txNormal.Sample(samLinear, texCoord);
 
-	//calculate the maximum of parallax shift
-	float2 parallaxLimit = fHeightScale * toEyeTS.xy;
+	bumpMap = (bumpMap * 2.0f) - 1.0f;
 
-	//calculate number of samples
-	//normal = (0, 0, 1) in tangent space essentially, if dot product converges to 0, take more samples because it means view vec and normal are perpendicular
-	int numSamples = (int)lerp(nMaxSamples, nMinSamples, abs(dot(toEyeTS, normal)));
-	float zStep = 1.0f / (float)numSamples;
+	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
 
-	float2 heightStep = zStep * parallaxLimit;
-
-	float2 dx = ddx(texCoord);
-	float2 dy = ddy(texCoord);
-
-	//init loop variables
-	int currSample = 0;
-	float2 currParallax = float2(0, 0);
-	float2 prevParallax = float2(0, 0);
-	float2 finalParallax = float2(0, 0);
-	float currZ = 1.0f - heightStep;
-	float prevZ = 1.0f;
-	float currHeight = 0.0f;
-	float prevHeight = 0.0f;
-
-	while (currSample < numSamples + 1)
-	{
-		currHeight = txDiffuse.SampleGrad(samLinear, texCoord + currParallax, dx, dy).r;
-
-		if (currHeight > currZ)
-		{
-			float n = prevHeight - prevZ;
-			float d = prevHeight - currHeight - prevZ + currZ;
-			float ratio = n / d;
-
-			finalParallax = prevParallax + ratio * heightStep;
-
-			currSample = numSamples + 1;
-		}
-		else
-		{
-			++currSample;
-
-			prevParallax = currParallax;
-			prevZ = currZ;
-			prevHeight = currHeight;
-
-			currParallax += heightStep;
-
-			currZ -= zStep;
-		}
-	}
-
-	return (texCoord + finalParallax);
+	return bumpMap;
 }
 
 //--------------------------------------------------------------------------------------
@@ -284,11 +233,13 @@ PS_INPUT VS(VS_INPUT input)
 	output.worldPos = output.Pos;
 	output.Pos = mul(output.Pos, View);
 	output.Pos = mul(output.Pos, Projection);
-
-	//// multiply the normal by the world transform (to go from model space to world space)
-	output.Norm = mul(float4(input.Norm, 0), World).xyz;
-
 	output.Tex = input.Tex;
+
+	// multiply the normal by the world transform (to go from model space to world space)
+	output.Norm = normalize(mul(input.Norm, (float3x3) World));
+	output.BiNorm = normalize(mul(input.BiNorm, (float3x3) World));
+	output.Tang = normalize(mul(input.Tang, (float3x3) World));
+
 
 	return output;
 }
@@ -299,30 +250,35 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-	// Change the range from (0,1) to (-1, 1)
-	float4 bumpMap = txNormal.Sample(samLinear, IN.Tex);
+	float3 vertexToLight = normalize(Lights[0].Position - IN.worldPos);
+	float3 vertexToEye = normalize(EyePosition - IN.worldPos);
 
-	bumpMap = (bumpMap * 2.0f) - 1.0f;
-	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
+	IN.Norm = normalize(IN.Norm);
 
-		LightingResult lit = ComputeLighting(IN.worldPos, bumpMap);
+	float3x3 TBN = ComputeTBNMatrix(IN.Norm, IN.Tang, IN.BiNorm);
 
-		float4 texColor = { 1, 1, 1, 1 };
+	float3 vertexToLightTS = mul(vertexToLight, TBN);
+	float3 vertexToEyeTS = mul(vertexToEye, TBN);
 
-		float4 emissive = Material.Emissive;
-		float4 ambient = Material.Ambient * GlobalAmbient;
-		float4 diffuse = Material.Diffuse * lit.Diffuse;
-		float4 specular = Material.Specular * lit.Specular;
+	float4 bumpMap = NormalMapping(IN.Tex);
 
-		if (Material.UseTexture)
-		{
-			texColor = txDiffuse.Sample(samLinear, IN.Tex);
-		}
+	LightingResult lit = ComputeLighting(IN.worldPos, normalize(bumpMap), vertexToLightTS);
 
-		float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
+	float4 texColor = { 1, 1, 1, 1 };
 
-	     return finalColor;
-	
+	float4 emissive = Material.Emissive;
+	float4 ambient = Material.Ambient * GlobalAmbient;
+	float4 diffuse = Material.Diffuse * lit.Diffuse;
+	float4 specular = Material.Specular * lit.Specular;
+
+	if (Material.UseTexture)
+	{
+		texColor = txDiffuse.Sample(samLinear, IN.Tex);
+	}
+
+	float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
+
+	return finalColor;
 }
 
 //--------------------------------------------------------------------------------------
