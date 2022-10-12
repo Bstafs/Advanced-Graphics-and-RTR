@@ -110,8 +110,9 @@ struct PS_INPUT
 	float4 worldPos : POSITION;
 	float3 Norm : NORMAL;
 	float2 Tex : TEXCOORD0;
-	float3 Tang : TANGENT;
-	float3 BiNorm : BINORMAL;
+
+	float3 eyeVectorTS;
+	float3 lightVectorTS;
 };
 
 
@@ -170,8 +171,9 @@ LightingResult DoPointLight(Light light, float3 vertexToEye, float4 vertexPos, f
 	return result;
 }
 
-LightingResult ComputeLighting(float4 vertexPos, float3 N, float3 vertexToEye)
+LightingResult ComputeLighting(float4 vertexPos, float3 N)
 {
+	float3 vertexToEye = normalize(EyePosition - vertexPos).xyz;
 
 	LightingResult totalResult = { { 0, 0, 0, 0 },{ 0, 0, 0, 0 } };
 
@@ -201,28 +203,6 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 	return tangentSpaceNormal;
 }
 
-float3x3 ComputeTBNMatrix(float3 norm, float3 tang, float3 binorm)
-{
-	float3 N = norm;
-	float3 T = normalize(tang - dot(tang, N) * N);
-	float3 B = normalize(binorm - dot(binorm, tang) * tang);
-
-	float3x3 TBN = float3x3(T, B, N);
-
-	return TBN;
-}
-
-float4 NormalMapping(float2 texCoord)
-{
-	float4 bumpMap = txNormal.Sample(samLinear, texCoord);
-
-	bumpMap = (bumpMap * 2.0f) - 1.0f;
-
-	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
-
-	return bumpMap;
-}
-
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -233,13 +213,25 @@ PS_INPUT VS(VS_INPUT input)
 	output.worldPos = output.Pos;
 	output.Pos = mul(output.Pos, View);
 	output.Pos = mul(output.Pos, Projection);
+
 	output.Tex = input.Tex;
 
 	// multiply the normal by the world transform (to go from model space to world space)
-	output.Norm = normalize(mul(input.Norm, (float3x3) World));
-	output.BiNorm = normalize(mul(input.BiNorm, (float3x3) World));
-	output.Tang = normalize(mul(input.Tang, (float3x3) World));
+	output.Norm = mul(float4(input.Norm, 1), World).xyz;
+	output.Tang = mul(float4(input.Tang, 1), World).xyz;
+	output.BiNorm = mul(float4(input.BiNorm, 1), World).xyz;
 
+	float3 vertexToEye = EyePosition - worldPos.xyz;
+	float3 vertexToLight = Lights[0].Position - worldPos.xyz;
+
+	float3 T = normalize(mul(input.Tang), World);
+	float3 B = normalize(mul(input.BiNorm), World);
+	float3 N = normalize(mul(input.Norm), World);
+	float3x3 TBN = float3x3(T,B,N);
+	float3x3 TBN_inv = transpose(TBN);
+
+	output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
+	output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
 
 	return output;
 }
@@ -250,19 +242,13 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-	float3 vertexToLight = normalize(Lights[0].Position - IN.worldPos);
-	float3 vertexToEye = normalize(EyePosition - IN.worldPos);
+	float4 bumpMap = txNormal.Sample(samLinear, texCoord);
 
-	IN.Norm = normalize(IN.Norm);
+	bumpMap = (bumpMap * 2.0f) - 1.0f;
 
-	float3x3 TBN = ComputeTBNMatrix(IN.Norm, IN.Tang, IN.BiNorm);
+	bumpMap = float4(normalize(bumpMap.xyz), 1); // XYZW
 
-	float3 vertexToLightTS = mul(vertexToLight, TBN);
-	float3 vertexToEyeTS = mul(vertexToEye, TBN);
-
-	float4 bumpMap = NormalMapping(IN.Tex);
-
-	LightingResult lit = ComputeLighting(IN.worldPos, normalize(bumpMap), vertexToLightTS);
+	LightingResult lit = ComputeLighting(IN.worldPos, normalize(bumpMap));
 
 	float4 texColor = { 1, 1, 1, 1 };
 
