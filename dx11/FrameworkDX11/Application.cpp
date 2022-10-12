@@ -650,6 +650,7 @@ void setupLightForRender()
 	g_Lighting.QuadraticAttenuation = 1;
 
 	LightPropertiesConstantBuffer lightProperties;
+	//lightProperties.EyePosition = g_Lighting.Position;
 	lightProperties.EyePosition = g_Lighting.Position;
 	lightProperties.Lights[0] = g_Lighting;
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
@@ -778,12 +779,13 @@ void Render()
 	// Render the cube
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	g_GameObject.draw(g_pImmediateContext);
 

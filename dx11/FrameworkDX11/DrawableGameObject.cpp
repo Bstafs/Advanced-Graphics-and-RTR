@@ -299,7 +299,7 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) }, 
 	};
 
-
+	CalculateModelVectors(vertices, 36);
 
 	D3D11_BUFFER_DESC bd = {};
 	bd.Usage = D3D11_USAGE_DEFAULT;
@@ -317,8 +317,6 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
 	pContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
-
-	CalculateModelVectors(vertices, 36);
 
 	// Create index buffer
 	WORD indices[] =
@@ -360,11 +358,11 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// load and setup textures
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\color.dds", nullptr, &m_pTextureResourceView);
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\stone.dds", nullptr, &m_pTextureResourceView);
 	if (FAILED(hr))
 		return hr;
 
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\normals.dds", nullptr, &m_pNormalResourceView);
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\conenormal.dds", nullptr, &m_pNormalResourceView);
 	if (FAILED(hr))
 		return hr;
 

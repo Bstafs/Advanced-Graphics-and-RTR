@@ -149,31 +149,30 @@ struct LightingResult
 	float4 Specular;
 };
 
-LightingResult DoPointLight(Light light, float3 vertexToEye, float4 vertexPos, float3 N)
+LightingResult DoPointLight(Light light, float3 eyeVectorTS, float3 lightVectorTS, float3 N)
 {
     LightingResult result;
 
-    float3 LightDirectionToVertex = (vertexPos - light.Position).xyz;
+    float3 LightDirectionToVertex =  -lightVectorTS;
     float distance = length(LightDirectionToVertex);
     LightDirectionToVertex = LightDirectionToVertex / distance;
 
-    float3 vertexToLight = (light.Position - vertexPos).xyz;
-    distance = length(vertexToLight);
-    vertexToLight = vertexToLight / distance;
+    distance = length(lightVectorTS);
+    lightVectorTS = lightVectorTS / distance;
 
     float attenuation = DoAttenuation(light, distance);
     attenuation = 1;
 
 
-    result.Diffuse = DoDiffuse(light, vertexToLight, N) * attenuation;
-    result.Specular = DoSpecular(light, vertexToEye, LightDirectionToVertex, N) * attenuation;
+    result.Diffuse = DoDiffuse(light, lightVectorTS, N) * attenuation;
+    result.Specular = DoSpecular(light, eyeVectorTS, LightDirectionToVertex, N) * attenuation;
 
     return result;
 }
 
-LightingResult ComputeLighting(float4 vertexPos, float3 N)
+LightingResult ComputeLighting(float3 eyeVectorTS, float3 lightVectorTS, float3 N)
 {
-    float3 vertexToEye = normalize(EyePosition - vertexPos).xyz;
+  //  float3 vertexToEye = normalize(EyePosition - vertexPos).xyz;
 
     LightingResult totalResult = { { 0, 0, 0, 0 }, { 0, 0, 0, 0 } };
 
@@ -185,7 +184,7 @@ LightingResult ComputeLighting(float4 vertexPos, float3 N)
         if (!Lights[i].Enabled) 
             continue;
 		
-        result = DoPointLight(Lights[i], vertexToEye, vertexPos, N);
+        result = DoPointLight(Lights[i], eyeVectorTS, lightVectorTS, N);
 		
         totalResult.Diffuse += result.Diffuse;
         totalResult.Specular += result.Specular;
@@ -223,14 +222,10 @@ PS_INPUT VS(VS_INPUT input)
 	float3 vertexToEye = EyePosition - worldPos.xyz;
 	float3 vertexToLight = Lights[0].Position - worldPos.xyz;
 
-	float3 normal = normalize(mul(input.Norm, World));
-	float3 tangent = normalize(mul(input.Tang, World));
-	float3 binormal = normalize(mul(input.BiNorm, World));
-
 	// TBN Matrix
-	float3 T = normalize(tangent);
-	float3 B = normalize(binormal);
-	float3 N = normal;
+    float3 T = normalize(mul(input.Tang, World));
+    float3 B = normalize(mul(input.BiNorm, World));
+    float3 N = normalize(mul(input.Norm, World));
 	float3x3 TBN = float3x3(T,B,N);
 	float3x3 TBN_inv = transpose(TBN);
 
@@ -248,14 +243,13 @@ PS_INPUT VS(VS_INPUT input)
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
 	// Normal Mapping
-    float4 bumpMap;
-    bumpMap = txNormal.Sample(samLinear, IN.Tex);
+    float4 bumpMap = txNormal.Sample(samLinear, IN.Tex);
 	
     bumpMap = (bumpMap * 2.0f) - 1.0f;
     bumpMap = float4(normalize(bumpMap.xyz), 1);
 	
 	// Compute Lighting
-	LightingResult lit = ComputeLighting(IN.worldPos , bumpMap);
+	LightingResult lit = ComputeLighting(IN.eyeVectorTS, IN.lightVectorTS, bumpMap);
 
 	float4 texColor = { 1, 1, 1, 1 };
 

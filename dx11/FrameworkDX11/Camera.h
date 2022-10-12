@@ -16,6 +16,7 @@ public:
 	//Return Position, Lookat and up;
 	XMFLOAT3 GetPosition() { return _eye; }
 	void SetPosition(XMFLOAT3 position) { _eye = position; }
+
 	XMFLOAT3 GetLookAt() { return _at; }
 	void SetLookAt(XMFLOAT3 atPosition) { _at = atPosition; }
 	XMFLOAT3 GetUp() { return _up; }
