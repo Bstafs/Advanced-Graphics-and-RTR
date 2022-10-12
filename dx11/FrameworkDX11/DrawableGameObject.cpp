@@ -368,9 +368,9 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 	if (FAILED(hr))
 		return hr;
 
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\displacement.dds", nullptr, &m_pParraResourceView);
-	if (FAILED(hr))
-		return hr;
+	//hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\displacement.dds", nullptr, &m_pParraResourceView);
+	//if (FAILED(hr))
+	//	return hr;
 
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -432,7 +432,7 @@ void DrawableGameObject::draw(ID3D11DeviceContext* pContext)
 
 	pContext->PSSetShaderResources(0, 1, &m_pTextureResourceView);
 	pContext->PSSetShaderResources(1, 1, &m_pNormalResourceView);
-	pContext->PSSetShaderResources(2, 1, &m_pParraResourceView);
+	//pContext->PSSetShaderResources(2, 1, &m_pParraResourceView);
 	pContext->PSSetSamplers(0, 1, &m_pSamplerLinear);
 
 	pContext->DrawIndexed(NUM_VERTICES, 0, 0);
