@@ -242,7 +242,8 @@ PS_INPUT VS(VS_INPUT input)
     output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
     output.eyePosTS = VectorToTangentSpace(EyePosition.xyz, TBN_inv);
     output.PosTS = VectorToTangentSpace(worldPos.xyz, TBN_inv);
-
+	
+	
     return output;
 }
 

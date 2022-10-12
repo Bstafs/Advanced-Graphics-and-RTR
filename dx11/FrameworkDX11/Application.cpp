@@ -535,7 +535,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 
 	g_Lighting.Position.x = 0.0f;
 	g_Lighting.Position.y = 0.0f;
-	g_Lighting.Position.z = 0.0f;
+	g_Lighting.Position.z = -1.5f;
 
 	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -3.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
 	g_pCurrentCamera = g_pCamera0;
@@ -777,10 +777,12 @@ void Render()
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 	// Render the cube
+	//Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
+	//Pixel shader
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
