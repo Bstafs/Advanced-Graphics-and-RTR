@@ -205,10 +205,103 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 
 float2 ParallaxMapping(float2 texCoords, float3 viewDir)
 {
-    float heightScale = 0.1f;
+    float heightScale = 0.05f;
     float height = txParrallax.Sample(samLinear, texCoords).x;
     float2 p = viewDir.xy / viewDir.z * (height * heightScale);
     return texCoords - p;
+}
+
+float2 SteepParallaxMapping(float2 texCoords, float3 viewDir)
+{
+    const float minLayers = 8.0;
+    const float maxLayers = 32.0;
+    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
+
+    float layerDepth = 1.0 / numLayers;
+
+    float currentLayerDepth = 0.0;
+    float2 P = viewDir.xy * 0.1f;
+    float2 deltaTexCoords = P / numLayers;
+    
+    float2 currentTexCoords = texCoords;
+    float currentDepthMapValue = txParrallax.Sample(samLinear, currentTexCoords).x;
+
+    [loop]
+    while (currentLayerDepth < currentDepthMapValue)
+    {
+        currentTexCoords -= deltaTexCoords;
+        currentDepthMapValue = txParrallax.Sample(samLinear, currentTexCoords).x;
+        currentLayerDepth += layerDepth;
+    }
+    
+    float2 prevTexCoords = currentTexCoords + deltaTexCoords;
+
+    float afterDepth = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = txParrallax.Sample(samLinear, prevTexCoords).r - currentLayerDepth + layerDepth;
+    float weight = afterDepth / (afterDepth - beforeDepth);
+  
+    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+
+    return finalTexCoords;
+}
+
+float2 ParallaxOcclusion(float2 texCoord, float3 normal, float3 viewDir)
+{
+	//set up toEye vector in tangent space
+    float3 toEyeTS = -viewDir;
+
+	//calculate the maximum of parallax shift
+    float2 parallaxLimit = 0.05f * toEyeTS.xy;
+
+	//calculate number of samples
+	//normal = (0, 0, 1) in tangent space essentially, if dot product converges to 0, take more samples because it means view vec and normal are perpendicular
+    int numSamples = (int) lerp(5, 1, abs(dot(toEyeTS, normal)));
+    float zStep = 1.0f / (float) numSamples;
+
+    float2 heightStep = zStep * parallaxLimit;
+
+    float2 dx = ddx(texCoord);
+    float2 dy = ddy(texCoord);
+
+	//init loop variables
+    int currSample = 0;
+    float2 currParallax = float2(0, 0);
+    float2 prevParallax = float2(0, 0);
+    float2 finalParallax = float2(0, 0);
+    float currZ = 1.0f - heightStep;
+    float prevZ = 1.0f;
+    float currHeight = 0.0f;
+    float prevHeight = 0.0f;
+
+    while (currSample < numSamples + 1)
+    {
+        currHeight = txParrallax.SampleGrad(samLinear, texCoord + currParallax, dx, dy).r;
+
+        if (currHeight > currZ)
+        {
+            float n = prevHeight - prevZ;
+            float d = prevHeight - currHeight - prevZ + currZ;
+            float ratio = n / d;
+
+            finalParallax = prevParallax + ratio * heightStep;
+
+            currSample = numSamples + 1;
+        }
+        else
+        {
+            ++currSample;
+
+            prevParallax = currParallax;
+            prevZ = currZ;
+            prevHeight = currHeight;
+
+            currParallax += heightStep;
+
+            currZ -= zStep;
+        }
+    }
+
+    return (texCoord + finalParallax);
 }
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -253,12 +346,17 @@ PS_INPUT VS(VS_INPUT input)
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
     float3 viewDir = normalize(IN.eyePosTS - IN.PosTS);
-    float2 texCoords = ParallaxMapping(IN.Tex, viewDir);
+ 
+    float2 texCoords = IN.Tex; // Normal Mapping
+    //float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
+    // float2 texCoords = SteepParallaxMapping(IN.Tex, viewDir); // Steep Parallax Mapping
+    //float2 texCoords = ParallaxOcclusion(IN.Tex, IN.Norm, viewDir); // Occlusion Parallax Mapping
+    
 	
-  //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
-  //    discard;
+    //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
+    //    discard;
 	
-	// Parallax Mapping
+	// Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
 	
     bumpMap = (bumpMap * 2.0f) - 1.0f;
@@ -282,7 +380,6 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
 
     return finalColor;
-    
 }
 
 //--------------------------------------------------------------------------------------
