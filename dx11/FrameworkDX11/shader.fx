@@ -211,7 +211,7 @@ float2 ParallaxMapping(float2 texCoords, float3 viewDir)
     return texCoords - p;
 }
 
-float2 ParallaxOcclusionMapping(float2 texCoords,float3 norm ,float3 viewDir)
+float2 ParallaxSteepMapping(float2 texCoords,float3 norm ,float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
     float minLayers = 5.0f;
