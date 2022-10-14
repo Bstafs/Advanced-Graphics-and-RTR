@@ -211,7 +211,7 @@ float2 ParallaxMapping(float2 texCoords, float3 viewDir)
     return texCoords - p;
 }
 
-float2 ParallaxOcclusionMapping(float2 texCoords,float3 norm ,float3 viewDir)
+float2 ParallaxSteepMapping(float2 texCoords,float3 norm ,float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
     float minLayers = 5.0f;
@@ -219,10 +219,10 @@ float2 ParallaxOcclusionMapping(float2 texCoords,float3 norm ,float3 viewDir)
     float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
 
     // Height of each layer
-    float layerDepth = 1.0 / numLayers;
+    float layerHeight = 1.0 / numLayers;
 
     //Depth of each layer
-    float currentLayerDepth = 0.0;
+    float currentLayerHeight = 0.0;
     float2 P = viewDir.xy * 0.1f; // 0.1f = height (temp value) Need to add a variable in buffer
     
     // Shift of texture coordinates for each iteration
@@ -230,30 +230,19 @@ float2 ParallaxOcclusionMapping(float2 texCoords,float3 norm ,float3 viewDir)
     
     // Current texture coords
     float2 currentTexCoords = texCoords;
-    float currentDepthMapValue = txParrallax.Sample(samLinear, currentTexCoords).x;
+    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
 
     // While point is above surface
-    [loop] // For some reason hlsl cant tell this is a loop and have to "unroll it" 
-    while (currentLayerDepth < currentDepthMapValue)
+    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
+    while (currentLayerHeight < parallaxMap)
     {
+        currentLayerHeight += layerHeight;
         currentTexCoords -= deltaTexCoords;
-        currentDepthMapValue = txParrallax.Sample(samLinear, currentTexCoords).x;
-        currentLayerDepth += layerDepth;
+        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
     }
     
-    // Final results and Calculations
-    float2 prevTexCoords = currentTexCoords + deltaTexCoords;
-
-    // Calculating after and before depth of mapping
-    float afterDepth = currentDepthMapValue - currentLayerDepth;
-    float beforeDepth = txParrallax.Sample(samLinear, prevTexCoords).r - currentLayerDepth + layerDepth;
-    float weight = afterDepth / (afterDepth - beforeDepth);
-  
-    // Adding depth to final texCoords
-    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
-
     // returning Final Coords
-    return finalTexCoords;
+    return currentTexCoords;
 }
 
 //--------------------------------------------------------------------------------------
@@ -302,7 +291,7 @@ float4 PS(PS_INPUT IN) : SV_TARGET
  
    // float2 texCoords = IN.Tex; // Normal Mapping
    // float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, IN.Norm, viewDir);
+    float2 texCoords = ParallaxSteepMapping(IN.Tex, IN.Norm, viewDir);
     
     //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
     //    discard;

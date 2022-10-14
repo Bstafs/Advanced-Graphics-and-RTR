@@ -236,19 +236,30 @@ float2 ParallaxSteepMapping(float2 texCoords, float3 norm, float3 viewDir)
     [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
     while (currentLayerHeight < parallaxMap)
     {
-        currentLayerHeight += layerHeight;
         currentTexCoords -= deltaTexCoords;
-        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
+        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
+        currentLayerHeight += layerHeight;
     }
     
+    // Final results and Calculations
+    float2 prevTexCoords = currentTexCoords + deltaTexCoords;
+
+    // Calculating after and before depth of mapping
+    float afterDepth = parallaxMap - currentLayerHeight;
+    float beforeDepth = txParrallax.Sample(samLinear, prevTexCoords).r - currentLayerHeight + layerHeight;
+    float weight = afterDepth / (afterDepth - beforeDepth);
+  
+    // Adding depth to final texCoords
+    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+
     // returning Final Coords
-    return currentTexCoords;
+    return finalTexCoords;
 }
 
 float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
-    float minLayers = 10.0f;
+    float minLayers = 5.0f;
     float maxLayers = 15.0f;
     float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
 
@@ -268,7 +279,7 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
 
     // While point is above surface
     [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
-    while (parallaxMap >currentLayerHeight)
+    while (parallaxMap > currentLayerHeight)
     {
         currentLayerHeight += layerHeight;
         currentTexCoords -= deltaTexCoords;
@@ -304,41 +315,6 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
     // returning Final Coords
     return currentTexCoords;
 }
-
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 norm, float3 viewDir)
-{
-    float minLayers = 10.0f;
-    float maxLayers = 15.0f;
-    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
-
-    float layerHeight = 1.0 / numLayers;
-
-    float currentLayerHeight = 0.0;
-    float2 P = viewDir.xy * 0.1f;
-    float2 deltaTexCoords = P / numLayers;
-    
-    float2 currentTexCoords = texCoords;
-    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
-
-    [loop]
-    while (currentLayerHeight < parallaxMap)
-    {
-        currentTexCoords -= deltaTexCoords;
-        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
-        currentLayerHeight += layerHeight;
-    }
-    
-    float2 prevTexCoords = currentTexCoords + deltaTexCoords;
-
-    float afterHeight = parallaxMap - currentLayerHeight;
-    float beforeHeight = txParrallax.Sample(samLinear, prevTexCoords).r - currentLayerHeight + layerHeight;
-    float weight = afterHeight / (afterHeight - beforeHeight);
-  
-    float2 finalParallaxHeight = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
-
-    return finalParallaxHeight;
-}
-
 
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -386,9 +362,8 @@ float4 PS(PS_INPUT IN) : SV_TARGET
  
    // float2 texCoords = IN.Tex; // Normal Mapping
    // float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
-   // float2 texCoords = ParallaxSteepMapping(IN.Tex, IN.Norm, viewDir);
-   // float2 texCoords = ParallaxReliefMapping(IN.Tex, IN.Norm, viewDir);
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, IN.Norm, viewDir);
+   //   float2 texCoords = ParallaxSteepMapping(IN.Tex, IN.Norm, viewDir);
+    float2 texCoords = ParallaxReliefMapping(IN.Tex, IN.Norm, viewDir);
     
     //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
     //    discard;

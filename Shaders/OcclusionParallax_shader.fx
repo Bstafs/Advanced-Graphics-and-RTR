@@ -248,7 +248,7 @@ float2 ParallaxSteepMapping(float2 texCoords, float3 norm, float3 viewDir)
 float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
-    float minLayers = 10.0f;
+    float minLayers = 5.0f;
     float maxLayers = 15.0f;
     float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
 
@@ -307,7 +307,7 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
 
 float2 ParallaxOcclusionMapping(float2 texCoords, float3 norm, float3 viewDir)
 {
-    float minLayers = 10.0f;
+    float minLayers = 5.0f;
     float maxLayers = 15.0f;
     float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
 

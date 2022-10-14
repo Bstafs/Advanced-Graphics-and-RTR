@@ -442,6 +442,9 @@ HRESULT		InitMesh()
 		return hr;
 	}
 
+	//pVSBlob->Release();
+
+
 	// Define the input layout
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
