@@ -233,7 +233,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords,float3 norm ,float3 viewDir)
     float currentDepthMapValue = txParrallax.Sample(samLinear, currentTexCoords).x;
 
     // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop and have to "unroll it" 
+    [loop] // For some reason hlsl cant tell this is a loop and have to "unroll it" 
     while (currentLayerDepth < currentDepthMapValue)
     {
         currentTexCoords -= deltaTexCoords;
