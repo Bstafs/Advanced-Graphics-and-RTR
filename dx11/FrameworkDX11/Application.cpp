@@ -538,9 +538,9 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 
 	g_Lighting.Position.x = 0.0f;
 	g_Lighting.Position.y = 0.0f;
-	g_Lighting.Position.z = -1.5f;
+	g_Lighting.Position.z = -3.0f;
 
-	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -3.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10000.0f);
+	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10.0f);
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
@@ -712,21 +712,21 @@ void DetectInput(double deltaTime)
 		currentPosX -= 0.1f * sin(rotationX);
 	}
 
-	DIMOUSESTATE mouseState;
+	//DIMOUSESTATE mouseState;
 
-	DIMouse->Acquire();
+	//DIMouse->Acquire();
 
-	DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
+	//DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
 
-	if (mouseState.lX != mouseLastState.lX)
-	{
-		rotationX += (mouseState.lX * 0.002f);
-	}
-	if (mouseState.lY != mouseLastState.lY)
-	{
-		rotationY -= (mouseState.lY * 0.002f);
-	}
-	mouseLastState = mouseState;
+	//if (mouseState.lX != mouseLastState.lX)
+	//{
+	//	rotationX += (mouseState.lX * 0.002f);
+	//}
+	//if (mouseState.lY != mouseLastState.lY)
+	//{
+	//	rotationY -= (mouseState.lY * 0.002f);
+	//}
+	//mouseLastState = mouseState;
 
 	return;
 }
