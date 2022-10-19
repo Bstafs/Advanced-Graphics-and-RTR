@@ -203,109 +203,7 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
     return tangentSpaceNormal;
 }
 
-float2 ParallaxMapping(float2 texCoords, float3 viewDir)
-{
-    float heightScale = 0.05f;
-    float height = txParrallax.Sample(samLinear, texCoords).x;
-    float2 p = viewDir.xy / viewDir.z * (height * heightScale);
-    return texCoords - p;
-}
-
-float2 ParallaxSteepMapping(float2 texCoords, float3 norm, float3 viewDir)
-{
-    // Number of layers frim angle between texCoords and Norm
-    float minLayers = 5.0f;
-    float maxLayers = 15.0f;
-    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
-
-    // Height of each layer
-    float layerHeight = 1.0 / numLayers;
-
-    //Depth of each layer
-    float currentLayerHeight = 0.0;
-    float2 P = viewDir.xy * 0.1f; // 0.1f = height (temp value) Need to add a variable in buffer
-    
-    // Shift of texture coordinates for each iteration
-    float2 deltaTexCoords = P / numLayers;
-    
-    // Current texture coords
-    float2 currentTexCoords = texCoords;
-    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
-
-    // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
-    while (currentLayerHeight < parallaxMap)
-    {
-        currentLayerHeight += layerHeight;
-        currentTexCoords -= deltaTexCoords;
-        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
-    }
-    
-    // returning Final Coords
-    return currentTexCoords;
-}
-
-float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
-{
-    // Number of layers frim angle between texCoords and Norm
-    float minLayers = 10.0f;
-    float maxLayers = 15.0f;
-    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
-
-    // Height of each layer
-    float layerHeight = 1.0 / numLayers;
-
-    //Depth of each layer
-    float currentLayerHeight = 0.0;
-    float2 P = viewDir.xy * 0.1f; // 0.1f = height (temp value) Need to add a variable in buffer
-    
-    // Shift of texture coordinates for each iteration
-    float2 deltaTexCoords = P / numLayers;
-    
-    // Current texture coords
-    float2 currentTexCoords = texCoords;
-    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
-
-    // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
-    while (parallaxMap > currentLayerHeight)
-    {
-        currentLayerHeight += layerHeight;
-        currentTexCoords -= deltaTexCoords;
-        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
-    }
-    
-    float dTexCord = deltaTexCoords / 2.0f;
-    float deltaHeight = layerHeight / 2.0f;
-    
-    currentTexCoords += deltaTexCoords;
-    currentLayerHeight -= deltaHeight;
-    
-    const int numSearches = 5;
-    for (int i = 0; i < numSearches; i++)
-    {
-        deltaTexCoords /= 2.0f;
-        deltaHeight /= 2.0f;
-   
-        float heightFromTexture = txParrallax.Sample(samLinear, currentTexCoords).r;
-        
-        if (currentLayerHeight < parallaxMap)
-        {
-            currentTexCoords -= deltaTexCoords;
-            currentLayerHeight += deltaTexCoords;
-        }
-        else
-        {
-            currentTexCoords += deltaHeight;
-            currentTexCoords -= deltaHeight;
-        }
-
-    }
-    // returning Final Coords
-    return currentTexCoords;
-}
-
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 norm, float3 viewDir)
+float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDir)
 {
     float minLayers = 10.0f;
     float maxLayers = 15.0f;
@@ -443,12 +341,7 @@ PS_INPUT VS(VS_INPUT input)
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
     float3 viewDir = normalize(IN.eyePosTS - IN.PosTS);
- 
-   // float2 texCoords = IN.Tex; // Normal Mapping
-   // float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
-   // float2 texCoords = ParallaxSteepMapping(IN.Tex, IN.Norm, viewDir);
-   // float2 texCoords = ParallaxReliefMapping(IN.Tex, IN.Norm, viewDir);
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, IN.Norm, viewDir);
+    float2 texCoords = ParallaxOcclusionMapping(IN.Tex viewDir);
     
     //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
     //    discard;
