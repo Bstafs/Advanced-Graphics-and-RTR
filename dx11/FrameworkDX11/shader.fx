@@ -206,13 +206,13 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 
 float2 ParallaxMapping(float2 texCoords, float3 viewDir)
 {
-    float heightScale = 0.05f;
-    float height = txParrallax.Sample(samLinear, texCoords).x;
+    float heightScale = 0.1f;
+    float height = txParrallax.Sample(samLinear, texCoords).r;
     float2 p = viewDir.xy / viewDir.z * (height * heightScale);
     return texCoords - p;
 }
 
-float2 ParallaxSteepMapping(float2 texCoords, float3 norm, float3 viewDir)
+float2 ParallaxSteepMapping(float2 texCoords, float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
     float minLayers = 5.0f;
@@ -246,7 +246,7 @@ float2 ParallaxSteepMapping(float2 texCoords, float3 norm, float3 viewDir)
     return currentTexCoords;
 }
 
-float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
+float2 ParallaxReliefMapping(float2 texCoords, float3 viewDir)
 {
     // Number of layers frim angle between texCoords and Norm
     float minLayers = 10.0f;
@@ -306,7 +306,7 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 norm, float3 viewDir)
     return currentTexCoords;
 }
 
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 norm, float3 viewDir)
+float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDir)
 {
     float minLayers = 10.0f;
     float maxLayers = 15.0f;
@@ -450,13 +450,13 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     float3 viewDir = normalize(IN.eyePosTS - IN.PosTS);
  
   //  float2 texCoords = IN.Tex; // Normal Mapping
-   // float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
-   // float2 texCoords = ParallaxSteepMapping(IN.Tex, IN.Norm, viewDir);
-   // float2 texCoords = ParallaxReliefMapping(IN.Tex, IN.Norm, viewDir);
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, IN.normTS, viewDir);
+  //  float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
+   // float2 texCoords = ParallaxSteepMapping(IN.Tex, viewDir);
+   // float2 texCoords = ParallaxReliefMapping(IN.Tex, viewDir);
+    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, viewDir);
     
-    if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
-        discard;
+    //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
+    //    discard;
 	
 	// Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
@@ -479,9 +479,9 @@ float4 PS(PS_INPUT IN) : SV_TARGET
         texColor = txDiffuse.Sample(samLinear, texCoords);
     }
 
-    float shadowFactor = ParallaxSoftShadowMultiplier(IN.lightVectorTS, texCoords, true);
-   float4 finalColor = (emissive + ambient + diffuse * shadowFactor + specular * shadowFactor) * texColor; // With Shadow
-  // float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
+    float shadowFactor = ParallaxSoftShadowMultiplier(IN.lightVectorTS, texCoords, false);
+ //  float4 finalColor = (emissive + ambient + diffuse * shadowFactor + specular * shadowFactor) * texColor; // With Shadow
+   float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
 
     return finalColor;
 }
