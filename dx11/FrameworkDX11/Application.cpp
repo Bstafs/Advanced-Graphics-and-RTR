@@ -652,9 +652,14 @@ void setupLightForRender()
 	g_Lighting.LinearAttenuation = 1;
 	g_Lighting.QuadraticAttenuation = 1;
 
+	XMFLOAT3 temp = g_pCurrentCamera->GetPosition();
+
+	XMFLOAT4 temp4 = { temp.x, temp.y, temp.z, 0 };
+
+
 	LightPropertiesConstantBuffer lightProperties;
 	//lightProperties.EyePosition = g_Lighting.Position;
-	lightProperties.EyePosition = g_Lighting.Position;
+	lightProperties.EyePosition = temp4;
 	lightProperties.Lights[0] = g_Lighting;
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 }

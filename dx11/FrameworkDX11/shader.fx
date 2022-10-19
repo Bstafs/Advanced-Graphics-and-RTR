@@ -164,7 +164,7 @@ LightingResult DoPointLight(Light light, float3 eyeVectorTS, float3 lightVectorT
     lightVectorTS = lightVectorTS / distance;
 
     float attenuation = DoAttenuation(light, distance);
-    attenuation = 1;
+    //attenuation = 1;
 
     result.Diffuse = DoDiffuse(light, lightVectorTS, N) * attenuation;
     result.Specular = DoSpecular(light, eyeVectorTS, LightDirectionToVertex, N) * attenuation;
@@ -306,20 +306,20 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 viewDir)
     return currentTexCoords;
 }
 
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDir)
+float2 ParallaxOcclusionMapping(float2 texCoords,out float parallaxHeight,float3 viewDir)
 {
-    float minLayers = 10.0f;
-    float maxLayers = 15.0f;
-    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
+    float minLayers = 0.0f;
+    float maxLayers = 32.0f;
+    float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0.0, 0.0, 1.0), viewDir)));
 
     float layerHeight = 1.0 / numLayers;
 
     float currentLayerHeight = 0.0;
-    float2 P = viewDir.xy * 0.1f;
+    float2 P = viewDir.xy / viewDir.z * 0.1f;
     float2 deltaTexCoords = P / numLayers;
     
     float2 currentTexCoords = texCoords;
-    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
+    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
 
     [loop]
     while (currentLayerHeight < parallaxMap)
@@ -335,33 +335,34 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDir)
     float beforeHeight = txParrallax.Sample(samLinear, prevTexCoords).r - currentLayerHeight + layerHeight;
     float weight = afterHeight / (afterHeight - beforeHeight);
   
-    float2 finalParallaxHeight = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+    parallaxHeight = currentLayerHeight + beforeHeight * weight + afterHeight * (1.0 - weight);
 
+    float2 finalParallaxHeight = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+    
     return finalParallaxHeight;
 }
 
-float ParallaxSoftShadowMultiplier(float3 light, float2 texCoord, bool softShadow)
+float ParallaxSoftShadowMultiplier(float3 light, float2 texCoord,in float parallaxHeight)
 {
     float shadowMultiplier = 1.0f;
     
-    float minLayers = 15;
-    float maxLayers = 30;
+    float minLayers = 0;
+    float maxLayers = 32;
     
-    float height = 1.0f - txParrallax.Sample(samLinear, texCoord).r;
+    //float height = 1.0f - txParrallax.Sample(samLinear, texCoord).r;
     
-    float parallaxScale = 0.1f * (1.0f - height);
-    
+    //float parallaxScale = 0.1f * (1.0f - height);
     
     if (dot(float3(0, 0, 1), light) > 0)
     {
         float numLayersUnderSurface = 0.0f;
         shadowMultiplier = 0.0f;
         
-        float numLayers = lerp(maxLayers, minLayers, dot(float3(0, 0, 1), light));
-        float layerHeight = height / numLayers;
-        float2 texStep = parallaxScale * light.xy / numLayers;
+        float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0, 0, 1), light)));
+        float layerHeight = parallaxHeight / numLayers;
+        float2 texStep = 0.1 * light.xy / numLayers;
         
-        float currentLayerheight = height - layerHeight;
+        float currentLayerheight = parallaxHeight - layerHeight;
         float2 currentTexCoords = texCoord + texStep;
         float heightFromTexture = txParrallax.Sample(samLinear, currentTexCoords).r;
         int stepIndex = 1;
@@ -388,18 +389,44 @@ float ParallaxSoftShadowMultiplier(float3 light, float2 texCoord, bool softShado
         }
         else
         {
-            if (softShadow == true)
-            {
-                shadowMultiplier = 0.9f - shadowMultiplier;          
-            }
-            else
-            {
-                shadowMultiplier = 0.1f;
-            }
+             shadowMultiplier = 1.0f - shadowMultiplier;          
         }
     }
     
     return shadowMultiplier;
+}
+
+float ParallaxShadowsRedon(float2 texCoords, float3 lightDir)
+{
+    if (lightDir.z >= 0.0)
+    {
+        return 0.0;
+    }
+    
+    float minLayers = 0;
+    float maxLayers = 32;
+    float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0, 0, 1), lightDir)));
+    
+    float2 currentTexCoords = texCoords;
+    float currentDepthValue = txParrallax.Sample(samLinear, currentTexCoords).r;
+    float currentLayerDepth = currentDepthValue;
+    
+    float layerDepth = 1.0 / numLayers;
+    float2 P = lightDir.xy / lightDir.z * 0.1;
+    float2 deltaTexCoords = P / numLayers; 
+    
+    [loop]
+    while (currentLayerDepth <= currentDepthValue && currentLayerDepth > 0.0)
+    {
+        currentTexCoords += deltaTexCoords;
+        currentDepthValue = txParrallax.Sample(samLinear, currentTexCoords).r;
+        currentLayerDepth -= layerDepth;
+
+    }
+    float r = currentLayerDepth > currentDepthValue ? 0.0 : 1.0;
+    
+    return r;
+    
 }
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -412,16 +439,10 @@ PS_INPUT VS(VS_INPUT input)
     output.worldPos = output.Pos;
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
-
     output.Tex = input.Tex;
-    output.Norm = input.Norm;
-	// multiply the normal by the world transform (to go from model space to world space)
-	//output.Norm = mul(float4(input.Norm, 1), World).xyz;
-	//output.Norm = mul(float4(input.BiNorm, 1), World).xyz;
-	//output.Norm = mul(float4(input.Tang, 1), World).xyz;
 
-    float3 vertexToEye = EyePosition.xyz - worldPos.xyz;
-    float3 vertexToLight = Lights[0].Position.xyz - worldPos.xyz;
+    float3 vertexToEye = worldPos.xyz - EyePosition.xyz;
+    float3 vertexToLight = worldPos.xyz - Lights[0].Position.xyz;
 
 	// TBN Matrix
     float3 T = normalize(mul(input.Tang, World));
@@ -434,9 +455,6 @@ PS_INPUT VS(VS_INPUT input)
 	// Set To Lighting To Tangent Space
     output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
     output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
-    output.eyePosTS = VectorToTangentSpace(EyePosition.xyz, TBN_inv);
-    output.PosTS = VectorToTangentSpace(worldPos.xyz, TBN_inv);
-    output.normTS = VectorToTangentSpace(input.Norm.xyx, TBN_inv);
 
     return output;
 }
@@ -447,16 +465,16 @@ PS_INPUT VS(VS_INPUT input)
 
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-    float3 viewDir = normalize(IN.eyePosTS - IN.PosTS);
- 
+    float parallaxHeight;
+    
   //  float2 texCoords = IN.Tex; // Normal Mapping
   //  float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
    // float2 texCoords = ParallaxSteepMapping(IN.Tex, viewDir);
    // float2 texCoords = ParallaxReliefMapping(IN.Tex, viewDir);
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, viewDir);
+    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
     
-    //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
-    //    discard;
+    if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
+        discard;
 	
 	// Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
@@ -465,7 +483,7 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     bumpMap = float4(normalize(bumpMap.xyz), 1);
 	
 	// Compute Lighting
-    LightingResult lit = ComputeLighting(IN.eyeVectorTS, IN.lightVectorTS, bumpMap);
+    LightingResult lit = ComputeLighting(IN.eyeVectorTS, -IN.lightVectorTS, bumpMap);
 
     float4 texColor = { 1, 1, 1, 1 };
 
@@ -479,9 +497,9 @@ float4 PS(PS_INPUT IN) : SV_TARGET
         texColor = txDiffuse.Sample(samLinear, texCoords);
     }
 
-    float shadowFactor = ParallaxSoftShadowMultiplier(IN.lightVectorTS, texCoords, false);
- //  float4 finalColor = (emissive + ambient + diffuse * shadowFactor + specular * shadowFactor) * texColor; // With Shadow
-   float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
+    float shadowFactor = ParallaxShadowsRedon(texCoords, IN.lightVectorTS);
+    float4 finalColor = (emissive + ambient + (diffuse + specular) * pow(shadowFactor, 4)) * texColor; // With Shadow
+    //float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
 
     return finalColor;
 }
