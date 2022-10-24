@@ -69,7 +69,7 @@ ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
 
 struct SCREEN_VERTEX
 {
-	XMFLOAT4 pos;
+	XMFLOAT3 pos;
 	XMFLOAT2 tex;
 };
 
@@ -77,6 +77,7 @@ ID3D11Buffer* g_pScreenQuadVB = nullptr;
 ID3D11InputLayout* g_pQuadLayout = nullptr;
 ID3D11VertexShader* g_pQuadVS = nullptr;
 ID3D11PixelShader* g_pQuadPS = nullptr;
+SCREEN_VERTEX svQuad[4];
 
 Light					g_Lighting;
 XMMATRIX                g_View;
@@ -183,7 +184,7 @@ HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow)
 	g_viewWidth = 1280;
 	g_viewHeight = 720;
 
-	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, TRUE);
 	g_hWnd = CreateWindow(L"TutorialWindowClass", L"Direct3D 11 Tutorial 5",
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 		CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
@@ -314,7 +315,7 @@ HRESULT InitDevice()
 	//hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgiFactory2));
 	//if (dxgiFactory2)
 	//{
-	//	 DirectX 11.1 or later
+	//	// DirectX 11.1 or later
 	//	hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&g_pd3dDevice1));
 	//	if (SUCCEEDED(hr))
 	//	{
@@ -340,7 +341,7 @@ HRESULT InitDevice()
 	//}
 	//else
 	//{
-	//	 DirectX 11.0 systems
+	//	// DirectX 11.0 systems
 	//	DXGI_SWAP_CHAIN_DESC sd = {};
 	//	sd.BufferCount = 1;
 	//	sd.BufferDesc.Width = width;
@@ -357,28 +358,29 @@ HRESULT InitDevice()
 	//	hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
 	//}
 
-	// Note this tutorial doesn't handle full-screen swapchains so we block the ALT+ENTER shortcut
+	//// Note this tutorial doesn't handle full-screen swapchains so we block the ALT+ENTER shortcut
 	//dxgiFactory->MakeWindowAssociation(g_hWnd, DXGI_MWA_NO_ALT_ENTER);
 
 	//dxgiFactory->Release();
 
-	//if (FAILED(hr))
+ //  if (FAILED(hr))
 	//	return hr;
 
-	// Create SwapChain
+	//// Create SwapChain
 	UINT maxQuality = 0;
-	UINT sampleCount = 1;
+	UINT sampleCount = 4;
 	DXGI_SWAP_CHAIN_DESC sd = {};
 	sd.BufferCount = 1;
-	sd.BufferDesc.Width = g_viewWidth;
-	sd.BufferDesc.Height = g_viewHeight;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;// DXGI_FORMAT_R16G16B16A16_FLOAT;//  DXGI_FORMAT_R16G16B16A16_FLOAT;////DXGI_FORMAT_R8G8B8A8_UNORM;
+	sd.BufferDesc.Width = width;
+	sd.BufferDesc.Height = height;
+	sd.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;// DXGI_FORMAT_R16G16B16A16_FLOAT;//  DXGI_FORMAT_R16G16B16A16_FLOAT;////DXGI_FORMAT_R8G8B8A8_UNORM;
 	sd.BufferDesc.RefreshRate.Numerator = 60;
 	sd.BufferDesc.RefreshRate.Denominator = 1;
 	sd.SampleDesc.Count = sampleCount;
 	sd.SampleDesc.Quality = maxQuality;
 	sd.OutputWindow = g_hWnd;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.Windowed = TRUE;
 
 	hr = g_pd3dDevice->CheckMultisampleQualityLevels(sd.BufferDesc.Format, sd.SampleDesc.Count, &maxQuality);
 
@@ -412,8 +414,8 @@ HRESULT InitDevice()
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
 	descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	descDepth.SampleDesc.Count = 1;
-	descDepth.SampleDesc.Quality = 0;
+	descDepth.SampleDesc.Count = sampleCount;
+	descDepth.SampleDesc.Quality = maxQuality;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	descDepth.CPUAccessFlags = 0;
@@ -425,7 +427,7 @@ HRESULT InitDevice()
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	descDSV.Format = descDepth.Format;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	descDSV.Texture2D.MipSlice = 0;
 	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
 	if (FAILED(hr))
@@ -433,6 +435,7 @@ HRESULT InitDevice()
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
+	//Texture Render
 	D3D11_TEXTURE2D_DESC textureDesc;
 	ZeroMemory(&textureDesc, sizeof(textureDesc));
 
@@ -441,14 +444,39 @@ HRESULT InitDevice()
 	textureDesc.MipLevels = 1;
 	textureDesc.ArraySize = 1;
 	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Count = sampleCount;
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
-	g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pRTTRrenderTargetTexture);
+	g_pd3dDevice->CreateTexture2D(&textureDesc, NULL, &g_pRTTRrenderTargetTexture);
 
+	//svQuad[0].pos = XMFLOAT3(-1.0f, 1.0f, 0.0f);
+	//svQuad[0].tex = XMFLOAT2(0.0f, 0.0f);
 
+	//svQuad[1].pos = XMFLOAT3(1.0f, 1.0f, 0.0f);
+	//svQuad[1].tex = XMFLOAT2(1.0f, 0.0f);
+
+	//svQuad[2].pos = XMFLOAT3(-1.0f, -1.0f, 0.0f);
+	//svQuad[2].tex = XMFLOAT2(0.0f, 1.0f);
+
+	//svQuad[3].pos = XMFLOAT3(1.0f, -1.0f, 0.0f);
+	//svQuad[3].tex = XMFLOAT2(1.0f, 1.0f);
+
+	//renderTargetViewDesc.Format = textureDesc.Format;
+	//renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	//renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	//// Create the render target view.
+	//g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
+
+	//shaderResourceViewDesc.Format = textureDesc.Format;
+	//shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	//shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	//shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	//// Create the shader resource view.
+	//g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -530,7 +558,6 @@ HRESULT		InitMesh()
 
 	// Set the input layout
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = nullptr;
 	hr = CompileShaderFromFile(L"shader.fx", "PS", "ps_4_0", &pPSBlob);
@@ -566,8 +593,6 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-
-
 	// Create the light constant buffer
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof(LightPropertiesConstantBuffer);
@@ -576,6 +601,7 @@ HRESULT		InitMesh()
 	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pLightConstantBuffer);
 	if (FAILED(hr))
 		return hr;
+
 
 	return hr;
 }
@@ -862,7 +888,22 @@ void Render()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
+
+	////Post Processing
+	//g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+	//g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pScreenQuadVB);
+
+	//g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0); 
+
 	g_GameObject.draw(g_pImmediateContext);
+
+	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	//g_pImmediateContext->PSSetShader(g_pQuadPS, 0, 0);
+
+	//g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pScreenQuadVB);
+	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);    // Draw the map to the square
+	//g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
 
 	// IMGUI
 	ImGui_ImplDX11_NewFrame();
