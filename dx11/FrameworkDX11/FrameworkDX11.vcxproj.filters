@@ -3,6 +3,12 @@
   <ItemGroup>
     <FxCompile Include="shader.fx" />
     <FxCompile Include="shaderQuad.fx" />
+    <FxCompile Include="shader_normal.fx" />
+    <FxCompile Include="shader_simple.fx" />
+    <FxCompile Include="shader_relief.fx" />
+    <FxCompile Include="shader_steep.fx" />
+    <FxCompile Include="shader_occlusion.fx" />
+    <FxCompile Include="shader_shadows.fx" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />

@@ -115,8 +115,8 @@ struct PS_INPUT
     float3 lightVectorTS : LIGHTVECTORTS;
     float3 PosTS : POSTS;
     float3 eyePosTS : EYEPOSTS;
+    float3 normTS : NORMTS;
 };
-
 
 float4 DoDiffuse(Light light, float3 L, float3 N)
 {
@@ -163,7 +163,7 @@ LightingResult DoPointLight(Light light, float3 eyeVectorTS, float3 lightVectorT
     lightVectorTS = lightVectorTS / distance;
 
     float attenuation = DoAttenuation(light, distance);
-    attenuation = 1;
+    //attenuation = 1;
 
     result.Diffuse = DoDiffuse(light, lightVectorTS, N) * attenuation;
     result.Specular = DoSpecular(light, eyeVectorTS, LightDirectionToVertex, N) * attenuation;
@@ -203,12 +203,64 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
     return tangentSpaceNormal;
 }
 
-float2 ParallaxMapping(float2 texCoords, float3 viewDir)
+float2 ParallaxReliefMapping(float2 texCoords, float3 viewDir)
 {
-    float heightScale = 0.1f;
-    float height = txParrallax.Sample(samLinear, texCoords).x;
-    float2 p = viewDir.xy / viewDir.z * (height * heightScale);
-    return texCoords - p;
+    // Number of layers frim angle between texCoords and Norm
+    float minLayers = 10.0f;
+    float maxLayers = 15.0f;
+    float numLayers = lerp(maxLayers, minLayers, max(dot(float3(0.0, 0.0, 1.0), viewDir), 0.0));
+
+    // Height of each layer
+    float layerHeight = 1.0 / numLayers;
+
+    //Depth of each layer
+    float currentLayerHeight = 0.0;
+    float2 P = viewDir.xy * 0.1f; // 0.1f = height (temp value) Need to add a variable in buffer
+    
+    // Shift of texture coordinates for each iteration
+    float2 deltaTexCoords = P / numLayers;
+    
+    // Current texture coords
+    float2 currentTexCoords = texCoords;
+    float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
+
+    // While point is above surface
+    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
+    while (parallaxMap > currentLayerHeight)
+    {
+        currentLayerHeight += layerHeight;
+        currentTexCoords -= deltaTexCoords;
+        parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
+    }
+    
+    float dTexCord = deltaTexCoords / 2.0f;
+    float deltaHeight = layerHeight / 2.0f;
+    
+    currentTexCoords += deltaTexCoords;
+    currentLayerHeight -= deltaHeight;
+    
+    const int numSearches = 5;
+    for (int i = 0; i < numSearches; i++)
+    {
+        deltaTexCoords /= 2.0f;
+        deltaHeight /= 2.0f;
+   
+        float heightFromTexture = txParrallax.Sample(samLinear, currentTexCoords).r;
+        
+        if (currentLayerHeight < parallaxMap)
+        {
+            currentTexCoords -= deltaTexCoords;
+            currentLayerHeight += deltaTexCoords;
+        }
+        else
+        {
+            currentTexCoords += deltaHeight;
+            currentTexCoords -= deltaHeight;
+        }
+
+    }
+    // returning Final Coords
+    return currentTexCoords;
 }
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -221,52 +273,45 @@ PS_INPUT VS(VS_INPUT input)
     output.worldPos = output.Pos;
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
-
     output.Tex = input.Tex;
 
-	// multiply the normal by the world transform (to go from model space to world space)
-	//output.Norm = mul(float4(input.Norm, 1), World).xyz;
-
-    float3 vertexToEye = EyePosition - worldPos.xyz;
-    float3 vertexToLight = Lights[0].Position - worldPos.xyz;
+    float3 vertexToEye = worldPos.xyz - EyePosition.xyz;
+    float3 vertexToLight = worldPos.xyz - Lights[0].Position.xyz;
 
 	// TBN Matrix
     float3 T = normalize(mul(input.Tang, World));
     float3 B = normalize(mul(input.BiNorm, World));
     float3 N = normalize(mul(input.Norm, World));
+    
     float3x3 TBN = float3x3(T, B, N);
     float3x3 TBN_inv = transpose(TBN);
 
 	// Set To Lighting To Tangent Space
     output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
     output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
-    output.eyePosTS = VectorToTangentSpace(EyePosition.xyz, TBN_inv);
-    output.PosTS = VectorToTangentSpace(worldPos.xyz, TBN_inv);
-	
-	
+
     return output;
 }
-
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-
 float4 PS(PS_INPUT IN) : SV_TARGET
 {
-    float3 viewDir = normalize(IN.eyePosTS - IN.PosTS);
-    float2 texCoords = ParallaxMapping(IN.Tex, viewDir);
+    float parallaxHeight;
+
+    float2 texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
+    
+    if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
+        discard;
 	
-  //if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
-  //    discard;
-	
-	// Parallax Mapping
+	// Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
 	
     bumpMap = (bumpMap * 2.0f) - 1.0f;
     bumpMap = float4(normalize(bumpMap.xyz), 1);
 	
 	// Compute Lighting
-    LightingResult lit = ComputeLighting(IN.eyeVectorTS, IN.lightVectorTS, bumpMap);
+    LightingResult lit = ComputeLighting(IN.eyeVectorTS, -IN.lightVectorTS, bumpMap);
 
     float4 texColor = { 1, 1, 1, 1 };
 
@@ -280,12 +325,10 @@ float4 PS(PS_INPUT IN) : SV_TARGET
         texColor = txDiffuse.Sample(samLinear, texCoords);
     }
 
-    float4 finalColor = (emissive + ambient + diffuse + specular) * texColor;
+    float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
 
     return finalColor;
-    
 }
-
 //--------------------------------------------------------------------------------------
 // PSSolid - render a solid color
 //--------------------------------------------------------------------------------------

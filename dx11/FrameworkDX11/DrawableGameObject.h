@@ -54,6 +54,7 @@ public:
 	void setPosition(XMFLOAT3 position);
 
 	XMFLOAT3							m_position;
+	XMFLOAT3							m_rotation;
 
 	bool isSpinning = false;
 

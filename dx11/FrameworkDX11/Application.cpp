@@ -115,6 +115,15 @@ HRESULT hr;
 
 XMFLOAT4 LightPosition(g_EyePosition);
 
+bool RenderToTexture = false;
+bool shaderOriginal = true;
+bool shaderNormal = false;
+bool shaderSimple = false;
+bool shaderSteep = false;
+bool shaderRelief = false;
+bool shaderOcclusion = false;
+bool shaderShadows = false;
+
 //--------------------------------------------------------------------------------------d
 // Entry point to the program. Initializes everything and goes into a message processing 
 // loop. Idle time is used to render the scene.
@@ -151,8 +160,16 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
+			if (RenderToTexture == true)
+			{
+				RenderToTarget();
+			}
+			else if (RenderToTexture == false)
+			{
+				Render();
+			}
+
 			//Render();
-			RenderToTarget();
 			UpdateCamera();
 		}
 	}
@@ -493,15 +510,15 @@ HRESULT InitDevice()
 
 	D3D11_SUBRESOURCE_DATA InitData = {};
 	InitData.pSysMem = v;
-	 hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pQuadVB);
+	hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pQuadVB);
 	if (FAILED(hr))
 		return hr;
 
 	// Create index buffer
 	WORD indices[] =
 	{
-      0,1,2,
-      0,2,3,
+	  0,1,2,
+	  0,2,3,
 	};
 
 	bd.Usage = D3D11_USAGE_DEFAULT;
@@ -988,7 +1005,21 @@ void IMGUI()
 		ImGui::DragFloat("Object Position X", &g_GameObject.m_position.x, 0.025f);
 		ImGui::DragFloat("Object Position Y", &g_GameObject.m_position.y, 0.025f);
 		ImGui::DragFloat("Object Position Z", &g_GameObject.m_position.z, 0.025f);
+		ImGui::Text("Rotation");
+		ImGui::DragFloat("Object Rotation X", &g_GameObject.m_rotation.x, 0.025f);
+		ImGui::DragFloat("Object Rotation Y", &g_GameObject.m_rotation.y, 0.025f);
+		ImGui::DragFloat("Object Rotation Z", &g_GameObject.m_rotation.z, 0.025f);
 	}
+	if (ImGui::CollapsingHeader("Shaders"))
+	{
+		
+	}
+	if (ImGui::CollapsingHeader("Post-Processing"))
+	{
+		ImGui::Text("Render To Texture");
+		if (ImGui::Checkbox("Render To Texture", &RenderToTexture));
+	}
+
 
 	ImGui::End();
 
@@ -1003,6 +1034,8 @@ void IMGUI()
 void Render()
 {
 	float t = calculateDeltaTime();
+	if (t == 0.0f)
+		return;
 
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
@@ -1053,10 +1086,14 @@ void Render()
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
 }
-
+//--------------------------------------------------------------------------------------
+// Render To Texture
+//--------------------------------------------------------------------------------------
 void RenderToTarget()
 {
 	float t = calculateDeltaTime();
+	if (t == 0.0f)
+		return;
 
 	// First Render
 	// Clear the back buffer
