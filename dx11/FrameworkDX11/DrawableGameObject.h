@@ -22,6 +22,12 @@ struct SimpleVertex
 	XMFLOAT3 BiNormal; 
 };
 
+struct SimpleVertexQuad
+{
+	XMFLOAT3 Pos;
+	XMFLOAT2 TexCoord;
+};
+
 class DrawableGameObject
 {
 public:
@@ -34,11 +40,13 @@ public:
 	void								update(float t, ID3D11DeviceContext* pContext);
 	void								draw(ID3D11DeviceContext* pContext);
 	ID3D11Buffer* getVertexBuffer() { return m_pVertexBuffer; }
+	ID3D11Buffer** getVertexBuffer(bool quadTrue) { return &m_pVertexBuffer; }
 	ID3D11Buffer* getIndexBuffer() { return m_pIndexBuffer; }
 	ID3D11ShaderResourceView** getTextureResourceView() { return &m_pTextureResourceView; }
 	XMFLOAT4X4* getTransform() { return &m_World; }
 	ID3D11SamplerState** getTextureSamplerState() { return &m_pSamplerLinear; }
 	ID3D11Buffer* getMaterialConstantBuffer() { return m_pMaterialConstantBuffer; }
+	
 
 	XMFLOAT3 getPosition() { return m_position; }
 

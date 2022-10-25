@@ -74,11 +74,17 @@ struct SCREEN_VERTEX
 	XMFLOAT2 tex;
 };
 
-ID3D11Buffer* g_pScreenQuadVB = nullptr;
+ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
+ID3D11Buffer* g_pQuadVB = nullptr;
+ID3D11Buffer* g_pQuadIB = nullptr;
+
 ID3D11InputLayout* g_pQuadLayout = nullptr;
 ID3D11VertexShader* g_pQuadVS = nullptr;
 ID3D11PixelShader* g_pQuadPS = nullptr;
 SCREEN_VERTEX svQuad[4];
+
+ID3D11Buffer* g_pVertexBuffer = nullptr;
+ID3D11Buffer* g_pIndexBuffer = nullptr;
 
 Light					g_Lighting;
 XMMATRIX                g_View;
@@ -457,23 +463,57 @@ HRESULT InitDevice()
 	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
 	// Create the shader resource view.
-   hr = g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
-   g_pRTTRrenderTargetTexture->Release();
-   if (FAILED(hr))
-	   return hr;
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
+	g_pRTTRrenderTargetTexture->Release();
+	if (FAILED(hr))
+		return hr;
 
-   //QUAD
-	svQuad[0].pos = XMFLOAT3(-1.0f, 1.0f, 0.0f);
-	svQuad[0].tex = XMFLOAT2(0.0f, 0.0f);
+	// QUAD
 
-	svQuad[1].pos = XMFLOAT3(1.0f, 1.0f, 0.0f);
-	svQuad[1].tex = XMFLOAT2(1.0f, 0.0f);
+// Vertices
+	SimpleVertexQuad v[] =
+	{
 
-	svQuad[2].pos = XMFLOAT3(-1.0f, -1.0f, 0.0f);
-	svQuad[2].tex = XMFLOAT2(0.0f, 1.0f);
+	{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
 
-	svQuad[3].pos = XMFLOAT3(1.0f, -1.0f, 0.0f);
-	svQuad[3].tex = XMFLOAT2(1.0f, 1.0f);
+	{ XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+
+	{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+
+	{ XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
+
+	};
+
+	// generate vb
+	D3D11_BUFFER_DESC bd = {};
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(SimpleVertexQuad) * 6;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA InitData = {};
+	InitData.pSysMem = v;
+	 hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pQuadVB);
+	if (FAILED(hr))
+		return hr;
+
+	// Create index buffer
+	WORD indices[] =
+	{
+      0,1,2,
+      0,2,3,
+	};
+
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(WORD) * 6;        // 36 vertices needed for 12 triangles in a triangle list
+	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	InitData.pSysMem = indices;
+	hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pQuadIB);
+	if (FAILED(hr))
+		return hr;
+
+	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
@@ -544,10 +584,8 @@ HRESULT		InitMesh()
 		return hr;
 	}
 
-	//pVSBlob->Release();
-
-
-	// Define the input layout
+	// Layout
+		// Define the input layout
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT , D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -565,8 +603,40 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-	// Set the input layout
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	// Compile the vertex shader
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"shaderQuad.fx", "QuadVS", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pQuadVS);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+
+	// Define the input layout
+	D3D11_INPUT_ELEMENT_DESC layoutQuad[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT , D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	numElements = ARRAYSIZE(layoutQuad);
+
+	// Create the input layout
+	hr = g_pd3dDevice->CreateInputLayout(layoutQuad, numElements, pVSBlob->GetBufferPointer(),
+		pVSBlob->GetBufferSize(), &g_pQuadLayout);
+	pVSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = nullptr;
 	hr = CompileShaderFromFile(L"shader.fx", "PS", "ps_4_0", &pPSBlob);
@@ -583,6 +653,22 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
+
+	// Compile the pixel shader
+	pPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"shaderQuad.fx", "QuadPS", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pQuadPS);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
 
 	// Create the constant buffer
 	D3D11_BUFFER_DESC bd = {};
@@ -916,11 +1002,17 @@ void IMGUI()
 //--------------------------------------------------------------------------------------
 void Render()
 {
+	float t = calculateDeltaTime();
+
 	// Clear the back buffer
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	g_GameObject.update(t, g_pImmediateContext);
 
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -940,6 +1032,8 @@ void Render()
 
 	// Render the cube
 	//Vertex Shader
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
@@ -951,6 +1045,7 @@ void Render()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
+	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 	g_GameObject.draw(g_pImmediateContext);
 
 	IMGUI();
@@ -961,6 +1056,8 @@ void Render()
 
 void RenderToTarget()
 {
+	float t = calculateDeltaTime();
+
 	// First Render
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
@@ -970,6 +1067,8 @@ void RenderToTarget()
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRTTRenderTargetView, g_pDepthStencilView);
+
+	g_GameObject.update(t, g_pImmediateContext);
 
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -989,6 +1088,8 @@ void RenderToTarget()
 
 	// Render the cube
 	//Vertex Shader
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
@@ -1000,47 +1101,33 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
-	g_pImmediateContext->PSSetShaderResources(0,1, g_GameObject.getTextureResourceView());
-
+	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 	g_GameObject.draw(g_pImmediateContext);
 
 	// Second Render
+
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	// get the game object world transform
-	mGO = XMLoadFloat4x4(g_GameObject.getTransform());
-	view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
-	projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
-
-	// store this and the view / projection in a constant buffer for the vertex shader to use
-	cb1;
-	cb1.mWorld = XMMatrixTranspose(mGO);
-	cb1.mView = XMMatrixTranspose(view);
-	cb1.mProjection = XMMatrixTranspose(projection);
-	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-	cb1.fHeightScale = 1.0f;
-	cb1.nMinSamples = 1.0f;
-	cb1.nMaxSamples = 10.0f;
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
 	// Render the cube
+
+	// Set VB and IB for Quad
+	UINT stride = sizeof(SimpleVertexQuad);
+	UINT offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
+
+
 	//Vertex Shader
-	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
+	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 	//Pixel shader
-	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
 
-	g_GameObject.draw(g_pImmediateContext);
+	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	IMGUI();
 
