@@ -29,7 +29,6 @@ cbuffer ConstantBuffer : register(b0)
 Texture2D txDiffuse : register(t0);
 Texture2D txNormal : register(t1);
 Texture2D txParrallax : register(t2);
-Texture2D txQuad : register(t3);
 
 SamplerState samLinear : register(s0)
 {
@@ -117,18 +116,6 @@ struct PS_INPUT
     float3 PosTS : POSTS;
     float3 eyePosTS : EYEPOSTS;
     float3 normTS : NORMTS;
-};
-
-struct QuadVS_Output
-{
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD0;
-};
-
-struct QuadVS_Input
-{
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD0;
 };
 
 float4 DoDiffuse(Light light, float3 L, float3 N)
@@ -470,14 +457,6 @@ PS_INPUT VS(VS_INPUT input)
 
     return output;
 }
-
-QuadVS_Output QuadVS(QuadVS_Input Input)
-{
-    QuadVS_Output Output;
-    Output.Pos = Input.Pos;
-    Output.Tex = Input.Tex;
-    return Output;
-}
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
@@ -520,12 +499,6 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     //float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
 
     return finalColor;
-}
-
-float4 QuadPS(QuadVS_Output Input) : SV_TARGET
-{
-    float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
-    return vColour;
 }
 //--------------------------------------------------------------------------------------
 // PSSolid - render a solid color

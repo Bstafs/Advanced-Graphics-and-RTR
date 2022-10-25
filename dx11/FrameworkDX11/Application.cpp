@@ -31,7 +31,7 @@ void		Render();
 void UpdateCamera();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
-
+void IMGUI();
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -463,20 +463,20 @@ HRESULT InitDevice()
 	//svQuad[3].pos = XMFLOAT3(1.0f, -1.0f, 0.0f);
 	//svQuad[3].tex = XMFLOAT2(1.0f, 1.0f);
 
-	//renderTargetViewDesc.Format = textureDesc.Format;
-	//renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	//renderTargetViewDesc.Texture2D.MipSlice = 0;
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
-	//// Create the render target view.
-	//g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
+	// Create the render target view.
+	g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
 
-	//shaderResourceViewDesc.Format = textureDesc.Format;
-	//shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	//shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	//shaderResourceViewDesc.Texture2D.MipLevels = 1;
+	shaderResourceViewDesc.Format = textureDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
-	//// Create the shader resource view.
-	//g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
+	// Create the shader resource view.
+	g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -848,6 +848,60 @@ void UpdateCamera()
 	g_pCurrentCamera->SetProjection();
 }
 
+void IMGUI()
+{
+	// IMGUI
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	setupLightForRender();
+	ImGui::Begin("Debug Window");
+
+	ImGui::SetWindowSize(ImVec2(500.0f, 200.0f));
+
+	if (ImGui::CollapsingHeader("Camera"))
+	{
+		std::string PositionX = "Position X: " + std::to_string(currentPosX);
+		ImGui::Text(PositionX.c_str());
+
+		std::string PositionY = "Position Y: " + std::to_string(currentPosY);
+		ImGui::Text(PositionY.c_str());
+
+		std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
+		ImGui::Text(PositionZ.c_str());
+
+		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
+		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
+	}
+	if (ImGui::CollapsingHeader("Lighting"))
+	{
+		ImGui::Text("Positions");
+		ImGui::DragFloat("Light Position X", &g_Lighting.Position.x, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Position Y", &g_Lighting.Position.y, 0.05f, -100.0f, 100.0f);
+		ImGui::DragFloat("Light Position Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
+
+		ImGui::Text("Directions");
+		ImGui::DragFloat("Light Direction X", &g_Lighting.Direction.x, 0.05f, -1.0f, 1.0f);
+		ImGui::DragFloat("Light Direction Y", &g_Lighting.Direction.y, 0.05f, -1.0, 1.0f);
+		ImGui::DragFloat("Light Direction Z", &g_Lighting.Direction.z, 0.05f, -1.0f, 1.0f);
+	}
+	if (ImGui::CollapsingHeader("Objects"))
+	{
+		ImGui::Text("Spin");
+		if (ImGui::Checkbox("Spinning", &g_GameObject.isSpinning));
+		ImGui::Text("Direction");
+		ImGui::DragFloat("Object Position X", &g_GameObject.m_position.x, 0.025f);
+		ImGui::DragFloat("Object Position Y", &g_GameObject.m_position.y, 0.025f);
+		ImGui::DragFloat("Object Position Z", &g_GameObject.m_position.z, 0.025f);
+	}
+
+	ImGui::End();
+
+	ImGui::Render();
+
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+}
+
 //--------------------------------------------------------------------------------------
 // Render a frame
 //--------------------------------------------------------------------------------------
@@ -905,57 +959,98 @@ void Render()
 	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);    // Draw the map to the square
 	//g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
 
-	// IMGUI
-	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-	setupLightForRender();
-	ImGui::Begin("Debug Window");
-
-	ImGui::SetWindowSize(ImVec2(500.0f, 200.0f));
-
-	if (ImGui::CollapsingHeader("Camera"))
-	{
-		std::string PositionX = "Position X: " + std::to_string(currentPosX);
-		ImGui::Text(PositionX.c_str());
-
-		std::string PositionY = "Position Y: " + std::to_string(currentPosY);
-		ImGui::Text(PositionY.c_str());
-
-		std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
-		ImGui::Text(PositionZ.c_str());
-
-		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
-		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
-	}
-	if (ImGui::CollapsingHeader("Lighting"))
-	{
-		ImGui::Text("Positions");
-		ImGui::DragFloat("Light Position X", &g_Lighting.Position.x, 0.05f, -100.0f, 100.0f);
-		ImGui::DragFloat("Light Position Y", &g_Lighting.Position.y, 0.05f, -100.0f, 100.0f);
-		ImGui::DragFloat("Light Position Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
-
-		ImGui::Text("Directions");
-		ImGui::DragFloat("Light Direction X", &g_Lighting.Direction.x, 0.05f, -1.0f, 1.0f);
-		ImGui::DragFloat("Light Direction Y", &g_Lighting.Direction.y, 0.05f, -1.0, 1.0f);
-		ImGui::DragFloat("Light Direction Z", &g_Lighting.Direction.z, 0.05f, -1.0f, 1.0f);
-	}
-	if (ImGui::CollapsingHeader("Objects"))
-	{
-		ImGui::Text("Spin");
-		if (ImGui::Checkbox("Spinning", &g_GameObject.isSpinning));
-		ImGui::Text("Direction");
-		ImGui::DragFloat("Object Position X", &g_GameObject.m_position.x, 0.025f);
-		ImGui::DragFloat("Object Position Y", &g_GameObject.m_position.y, 0.025f);
-		ImGui::DragFloat("Object Position Z", &g_GameObject.m_position.z, 0.025f);
-	}
-
-	ImGui::End();
-
-	ImGui::Render();
-
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	IMGUI();
 
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
+}
+
+void RenderToTarget()
+{
+	// First Render
+	// Clear the back buffer
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
+
+	// Clear the depth buffer to 1.0 (max depth)
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRTTRenderTargetView, g_pDepthStencilView);
+
+	// get the game object world transform
+	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	// store this and the view / projection in a constant buffer for the vertex shader to use
+	ConstantBuffer cb1;
+	cb1.mWorld = XMMatrixTranspose(mGO);
+	cb1.mView = XMMatrixTranspose(view);
+	cb1.mProjection = XMMatrixTranspose(projection);
+	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	cb1.fHeightScale = 1.0f;
+	cb1.nMinSamples = 1.0f;
+	cb1.nMaxSamples = 10.0f;
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+	// Render the cube
+	//Vertex Shader
+	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	//Pixel shader
+	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+
+	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	g_GameObject.draw(g_pImmediateContext);
+
+
+	// Second Render
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::MidnightBlue);
+
+	// Clear the depth buffer to 1.0 (max depth)
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	// get the game object world transform
+	mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+	projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	// store this and the view / projection in a constant buffer for the vertex shader to use
+	cb1;
+	cb1.mWorld = XMMatrixTranspose(mGO);
+	cb1.mView = XMMatrixTranspose(view);
+	cb1.mProjection = XMMatrixTranspose(projection);
+	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	cb1.fHeightScale = 1.0f;
+	cb1.nMinSamples = 1.0f;
+	cb1.nMaxSamples = 10.0f;
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+	// Render the cube
+	//Vertex Shader
+	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	//Pixel shader
+	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
+
+	g_GameObject.draw(g_pImmediateContext);
+
+	// Present our back buffer to our front buffer
+	g_pSwapChain->Present(0, 0);
+
 }
