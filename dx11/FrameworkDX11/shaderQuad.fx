@@ -53,9 +53,8 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
     float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
-   
     
-    vColour.x = 1;
+    
     
     return vColour;
 }

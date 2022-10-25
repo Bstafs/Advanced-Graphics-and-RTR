@@ -33,6 +33,7 @@ void UpdateCamera();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
 void IMGUI();
+void SetShader(wstring filename);
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -115,14 +116,10 @@ HRESULT hr;
 
 XMFLOAT4 LightPosition(g_EyePosition);
 
+wstring shaderName(L"shader.fx");
+const wchar_t* filename = shaderName.c_str();
+
 bool RenderToTexture = false;
-bool shaderOriginal = true;
-bool shaderNormal = false;
-bool shaderSimple = false;
-bool shaderSteep = false;
-bool shaderRelief = false;
-bool shaderOcclusion = false;
-bool shaderShadows = false;
 
 //--------------------------------------------------------------------------------------d
 // Entry point to the program. Initializes everything and goes into a message processing 
@@ -168,8 +165,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 			{
 				Render();
 			}
-
-			//Render();
 			UpdateCamera();
 		}
 	}
@@ -267,6 +262,7 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
 //--------------------------------------------------------------------------------------
 HRESULT InitDevice()
 {
+
 	HRESULT hr = S_OK;
 
 	RECT rc;
@@ -585,7 +581,7 @@ HRESULT		InitMesh()
 {
 	// Compile the vertex shader
 	ID3DBlob* pVSBlob = nullptr;
-	HRESULT hr = CompileShaderFromFile(L"shader.fx", "VS", "vs_4_0", &pVSBlob);
+	HRESULT hr = CompileShaderFromFile(filename, "VS", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -656,7 +652,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shader.fx", "PS", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(filename, "PS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -915,21 +911,24 @@ void DetectInput(double deltaTime)
 		currentPosX -= 0.1f * sin(rotationX);
 	}
 
-	//DIMOUSESTATE mouseState;
+	if (GetAsyncKeyState(0x0001))
+	{
+		DIMOUSESTATE mouseState;
 
-	//DIMouse->Acquire();
+		DIMouse->Acquire();
 
-	//DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
+		DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
 
-	//if (mouseState.lX != mouseLastState.lX)
-	//{
-	//	rotationX += (mouseState.lX * 0.002f);
-	//}
-	//if (mouseState.lY != mouseLastState.lY)
-	//{
-	//	rotationY -= (mouseState.lY * 0.002f);
-	//}
-	//mouseLastState = mouseState;
+		if (mouseState.lX != mouseLastState.lX)
+		{
+			rotationX += (mouseState.lX * 0.002f);
+		}
+		if (mouseState.lY != mouseLastState.lY)
+		{
+			rotationY -= (mouseState.lY * 0.002f);
+		}
+		mouseLastState = mouseState;
+	}
 
 	return;
 }
@@ -960,6 +959,12 @@ void UpdateCamera()
 	g_pCurrentCamera->SetProjection();
 }
 
+void SetShader(wstring fn)
+{
+	filename = fn.c_str();
+	InitMesh();
+}
+
 void IMGUI()
 {
 	// IMGUI
@@ -969,19 +974,15 @@ void IMGUI()
 	setupLightForRender();
 	ImGui::Begin("Debug Window");
 
-	ImGui::SetWindowSize(ImVec2(500.0f, 200.0f));
+	ImGui::SetWindowSize(ImVec2(500.0f, 500.0f));
 
 	if (ImGui::CollapsingHeader("Camera"))
 	{
-		std::string PositionX = "Position X: " + std::to_string(currentPosX);
-		ImGui::Text(PositionX.c_str());
-
-		std::string PositionY = "Position Y: " + std::to_string(currentPosY);
-		ImGui::Text(PositionY.c_str());
-
-		std::string PositionZ = "Position Z: " + std::to_string(currentPosZ);
-		ImGui::Text(PositionZ.c_str());
-
+		ImGui::Text("Camera Position");
+		ImGui::DragFloat("Camera Pos X", &currentPosX, 0.005f);
+		ImGui::DragFloat("Camera Pos Y", &currentPosY, 0.005f);
+		ImGui::DragFloat("Camera Pos Z", &currentPosZ, 0.005f);
+		ImGui::Text("Camera Rotation");
 		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
 		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
 	}
@@ -1012,14 +1013,40 @@ void IMGUI()
 	}
 	if (ImGui::CollapsingHeader("Shaders"))
 	{
-		
+		if (ImGui::Button("Original Shader"))
+		{
+			SetShader(L"shader.fx");
+		}
+		if (ImGui::Button("Normal Shader"))
+		{
+			SetShader(L"shader_normal.fx");
+		}
+		if (ImGui::Button("Simple Parallax Shader"))
+		{
+			SetShader(L"shader_simple.fx");
+		}
+		if (ImGui::Button("Steep Parallax Shader"))
+		{
+			SetShader(L"shader_steep.fx");
+		}
+		if (ImGui::Button("Relief Parallax Shader"))
+		{
+			SetShader(L"shader_relief.fx");
+		}
+		if (ImGui::Button("Occlusion Parallax Shader"))
+		{
+			SetShader(L"shader_occlusion.fx");
+		}
+		if (ImGui::Button("Self-Shadow Occlusion Parallax Shader"))
+		{
+			SetShader(L"shader_shadows.fx");
+		}
 	}
 	if (ImGui::CollapsingHeader("Post-Processing"))
 	{
 		ImGui::Text("Render To Texture");
 		if (ImGui::Checkbox("Render To Texture", &RenderToTexture));
 	}
-
 
 	ImGui::End();
 
@@ -1036,6 +1063,8 @@ void Render()
 	float t = calculateDeltaTime();
 	if (t == 0.0f)
 		return;
+
+	UpdateCamera();
 
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
@@ -1098,7 +1127,7 @@ void RenderToTarget()
 	// First Render
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
+	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::DarkBlue);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
