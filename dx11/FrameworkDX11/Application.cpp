@@ -911,24 +911,24 @@ void DetectInput(double deltaTime)
 		currentPosX -= 0.1f * sin(rotationX);
 	}
 
-	if (GetAsyncKeyState(0x0001))
-	{
-		DIMOUSESTATE mouseState;
+	//if (GetAsyncKeyState(0x0001))
+	//{
+	//	DIMOUSESTATE mouseState;
 
-		DIMouse->Acquire();
+	//	DIMouse->Acquire();
 
-		DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
+	//	DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
 
-		if (mouseState.lX != mouseLastState.lX)
-		{
-			rotationX += (mouseState.lX * 0.002f);
-		}
-		if (mouseState.lY != mouseLastState.lY)
-		{
-			rotationY -= (mouseState.lY * 0.002f);
-		}
-		mouseLastState = mouseState;
-	}
+	//	if (mouseState.lX != mouseLastState.lX)
+	//	{
+	//		rotationX += (mouseState.lX * 0.002f);
+	//	}
+	//	if (mouseState.lY != mouseLastState.lY)
+	//	{
+	//		rotationY -= (mouseState.lY * 0.002f);
+	//	}
+	//	mouseLastState = mouseState;
+	//}
 
 	return;
 }
@@ -1184,7 +1184,6 @@ void RenderToTarget()
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
-
 
 	//Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
