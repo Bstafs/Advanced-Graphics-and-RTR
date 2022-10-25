@@ -28,6 +28,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 void		Render();
+void RenderToTarget();
 void UpdateCamera();
 bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
@@ -144,7 +145,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
-			Render();
+			//Render();
+			RenderToTarget();
 			UpdateCamera();
 		}
 	}
@@ -424,17 +426,6 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	// Create the depth stencil view
-	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
-	descDSV.Format = descDepth.Format;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-	descDSV.Texture2D.MipSlice = 0;
-	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
-	if (FAILED(hr))
-		return hr;
-
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
 	//Texture Render
 	D3D11_TEXTURE2D_DESC textureDesc;
 	ZeroMemory(&textureDesc, sizeof(textureDesc));
@@ -449,26 +440,16 @@ HRESULT InitDevice()
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
-	g_pd3dDevice->CreateTexture2D(&textureDesc, NULL, &g_pRTTRrenderTargetTexture);
-
-	//svQuad[0].pos = XMFLOAT3(-1.0f, 1.0f, 0.0f);
-	//svQuad[0].tex = XMFLOAT2(0.0f, 0.0f);
-
-	//svQuad[1].pos = XMFLOAT3(1.0f, 1.0f, 0.0f);
-	//svQuad[1].tex = XMFLOAT2(1.0f, 0.0f);
-
-	//svQuad[2].pos = XMFLOAT3(-1.0f, -1.0f, 0.0f);
-	//svQuad[2].tex = XMFLOAT2(0.0f, 1.0f);
-
-	//svQuad[3].pos = XMFLOAT3(1.0f, -1.0f, 0.0f);
-	//svQuad[3].tex = XMFLOAT2(1.0f, 1.0f);
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pRTTRrenderTargetTexture);
 
 	renderTargetViewDesc.Format = textureDesc.Format;
 	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
 	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
 	// Create the render target view.
-	g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
+	if (FAILED(hr))
+		return hr;
 
 	shaderResourceViewDesc.Format = textureDesc.Format;
 	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
@@ -476,7 +457,35 @@ HRESULT InitDevice()
 	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
 	// Create the shader resource view.
-	g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
+   hr = g_pd3dDevice->CreateShaderResourceView(g_pRTTRrenderTargetTexture, &shaderResourceViewDesc, &g_pRTTShaderResourceView);
+   g_pRTTRrenderTargetTexture->Release();
+   if (FAILED(hr))
+	   return hr;
+
+   //QUAD
+	svQuad[0].pos = XMFLOAT3(-1.0f, 1.0f, 0.0f);
+	svQuad[0].tex = XMFLOAT2(0.0f, 0.0f);
+
+	svQuad[1].pos = XMFLOAT3(1.0f, 1.0f, 0.0f);
+	svQuad[1].tex = XMFLOAT2(1.0f, 0.0f);
+
+	svQuad[2].pos = XMFLOAT3(-1.0f, -1.0f, 0.0f);
+	svQuad[2].tex = XMFLOAT2(0.0f, 1.0f);
+
+	svQuad[3].pos = XMFLOAT3(1.0f, -1.0f, 0.0f);
+	svQuad[3].tex = XMFLOAT2(1.0f, 1.0f);
+
+	// Create the depth stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+	descDSV.Format = descDepth.Format;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	descDSV.Texture2D.MipSlice = 0;
+	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
+	if (FAILED(hr))
+		return hr;
+
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -942,22 +951,7 @@ void Render()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
-
-	////Post Processing
-	//g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
-	//g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pScreenQuadVB);
-
-	//g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0); 
-
 	g_GameObject.draw(g_pImmediateContext);
-
-	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
-	//g_pImmediateContext->PSSetShader(g_pQuadPS, 0, 0);
-
-	//g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pScreenQuadVB);
-	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);    // Draw the map to the square
-	//g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
 
 	IMGUI();
 
@@ -1006,17 +1000,15 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
+	g_pImmediateContext->PSSetShaderResources(0,1, g_GameObject.getTextureResourceView());
+
 	g_GameObject.draw(g_pImmediateContext);
 
-
 	// Second Render
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::MidnightBlue);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// get the game object world transform
 	mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -1049,6 +1041,8 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
 
 	g_GameObject.draw(g_pImmediateContext);
+
+	IMGUI();
 
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);

@@ -428,7 +428,6 @@ void DrawableGameObject::update(float t, ID3D11DeviceContext* pContext)
 void DrawableGameObject::draw(ID3D11DeviceContext* pContext)
 {
 
-	pContext->PSSetShaderResources(0, 1, &m_pTextureResourceView);
 	pContext->PSSetShaderResources(1, 1, &m_pNormalResourceView);
 	pContext->PSSetShaderResources(2, 1, &m_pParraResourceView);
 	pContext->PSSetSamplers(0, 1, &m_pSamplerLinear);
