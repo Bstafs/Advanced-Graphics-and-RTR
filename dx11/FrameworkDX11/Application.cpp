@@ -867,6 +867,24 @@ void DetectInput(double deltaTime)
 		currentPosY += 0.1f * sin(rotationY);
 	}
 
+	if (GetAsyncKeyState('D'))
+	{
+		rotationX += 0.1f;
+	}
+	if (GetAsyncKeyState('A'))
+	{
+		rotationX -= 0.1f;
+	}
+
+	if (GetAsyncKeyState('Q'))
+	{
+		rotationY -= 0.1f;
+	}
+	if (GetAsyncKeyState('E'))
+	{
+		rotationY += 0.1f;
+	}
+
 	return;
 }
 
