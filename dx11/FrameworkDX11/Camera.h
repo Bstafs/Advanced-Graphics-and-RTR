@@ -19,24 +19,16 @@ public:
 
 	XMFLOAT3 GetLookAt() { return _at; }
 	void SetLookAt(XMFLOAT3 atPosition) { _at = atPosition; }
+
 	XMFLOAT3 GetUp() { return _up; }
 	void SetUp(XMFLOAT3 upPosition) { _up = upPosition; }
 
-	//Return View, Projection and combined viewProjection;
+	//Return View and Projection
 	XMFLOAT4X4* GetView() { return &_view; }
-	void SetView()
-	{
-		XMVECTOR Eye = XMVectorSet(_eye.x, _eye.y, _eye.z, 0.0f);
-		XMVECTOR At = XMVectorSet(_at.x, _at.y, _at.z, 0.0f);
-		XMVECTOR Up = XMVectorSet(_up.x, _up.y, _up.z, 0.0f);
+	void SetView();
 
-		XMStoreFloat4x4(&_view, XMMatrixLookAtLH(Eye, At, Up));
-	}
 	XMFLOAT4X4* GetProjection() { return &_projection; }
-	void SetProjection()
-	{
-		XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _windowWidth / (FLOAT)_windowHeight, _nearDepth, _farDepth));
-	}
+	void SetProjection();
 
 	void Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth);
 

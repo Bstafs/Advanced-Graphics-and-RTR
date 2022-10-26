@@ -9,7 +9,7 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer ConstantBuffer : register(b0)
+cbuffer ConstantBuffer : register(b1)
 {
     matrix World;
     matrix View;
@@ -66,7 +66,7 @@ float4 MotionBlurr(float2 tc)
     float4 colour = txDiffuse.Sample(samLinear, texCoords);
     texCoords += velocity;
     
-    int numberOfSamples = 4;
+    int numberOfSamples = 10;
     
     for (int i = 1; i < numberOfSamples; ++i, texCoords += velocity)
     {
@@ -95,6 +95,9 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
     float4 motionBlur = MotionBlurr(Input.Tex);
+    float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+    
+    vColour.x = 1;
     
     return motionBlur;
 }

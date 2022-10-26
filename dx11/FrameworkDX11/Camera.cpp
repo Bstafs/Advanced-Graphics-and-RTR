@@ -23,6 +23,19 @@ void Camera::Update()
 
 }
 
+void Camera::SetView()
+{
+	XMVECTOR Eye = XMVectorSet(_eye.x, _eye.y, _eye.z, 0.0f);
+	XMVECTOR At = XMVectorSet(_at.x, _at.y, _at.z, 0.0f);
+	XMVECTOR Up = XMVectorSet(_up.x, _up.y, _up.z, 0.0f);
+
+	XMStoreFloat4x4(&_view, XMMatrixLookAtLH(Eye, At, Up));
+}
+
+void Camera::SetProjection()
+{
+	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, _windowWidth / (FLOAT)_windowHeight, _nearDepth, _farDepth));
+}
 
 void Camera::Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth)
 {

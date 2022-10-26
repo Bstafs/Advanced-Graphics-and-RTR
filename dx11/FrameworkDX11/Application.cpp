@@ -18,9 +18,8 @@
 
 DirectX::XMFLOAT4 g_EyePosition(0.0f, 0, -3, 1.0f);
 
-//--------------------------------------------------------------------------------------
-// Forward declarations
-//--------------------------------------------------------------------------------------
+// Forward Declaration
+// Functions
 HRESULT		InitWindow(HINSTANCE hInstance, int nCmdShow);
 HRESULT		InitDevice();
 HRESULT		InitMesh();
@@ -30,101 +29,102 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 void		Render();
 void RenderToTarget();
 void UpdateCamera();
-bool InitDirectInput(HINSTANCE hInstance);
 void DetectInput(double deltaTime);
 void IMGUI();
 void SetShader(wstring filename);
 
-//--------------------------------------------------------------------------------------
-// Global Variables
-//--------------------------------------------------------------------------------------
+// Globals
+
+// DirectX Setup
 HINSTANCE               g_hInst = nullptr;
 HWND                    g_hWnd = nullptr;
 D3D_DRIVER_TYPE         g_driverType = D3D_DRIVER_TYPE_NULL;
 D3D_FEATURE_LEVEL       g_featureLevel = D3D_FEATURE_LEVEL_11_0;
+
+// Devices
 ID3D11Device* g_pd3dDevice = nullptr;
 ID3D11Device1* g_pd3dDevice1 = nullptr;
 ID3D11DeviceContext* g_pImmediateContext = nullptr;
 ID3D11DeviceContext1* g_pImmediateContext1 = nullptr;
+
+// Swap Chain
 IDXGISwapChain* g_pSwapChain = nullptr;
 IDXGISwapChain1* g_pSwapChain1 = nullptr;
+
+// Render Targets
 ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
+
+// Textures
 ID3D11Texture2D* g_pDepthStencil = nullptr;
+ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
+
+// Shader Resources
+ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
+ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
+
+// Stencils
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
+
+// Shaders
 ID3D11VertexShader* g_pVertexShader = nullptr;
-
 ID3D11PixelShader* g_pPixelShader = nullptr;
+ID3D11VertexShader* g_pQuadVS = nullptr;
+ID3D11PixelShader* g_pQuadPS = nullptr;
 
+// Input layouts
 ID3D11InputLayout* g_pVertexLayout = nullptr;
+ID3D11InputLayout* g_pQuadLayout = nullptr;
 
+// Buffers
 ID3D11Buffer* g_pConstantBuffer = nullptr;
-
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
+ID3D11Buffer* g_pQuadVB = nullptr;
+ID3D11Buffer* g_pQuadIB = nullptr;
 
+// Descriptons
 D3D11_TEXTURE2D_DESC textureDesc;
 D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
 
-ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
-ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
-ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
-
+// Structs
 struct SCREEN_VERTEX
 {
 	XMFLOAT3 pos;
 	XMFLOAT2 tex;
 };
 
-ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
-ID3D11Buffer* g_pQuadVB = nullptr;
-ID3D11Buffer* g_pQuadIB = nullptr;
-
-ID3D11InputLayout* g_pQuadLayout = nullptr;
-ID3D11VertexShader* g_pQuadVS = nullptr;
-ID3D11PixelShader* g_pQuadPS = nullptr;
 SCREEN_VERTEX svQuad[4];
 
-ID3D11Buffer* g_pVertexBuffer = nullptr;
-ID3D11Buffer* g_pIndexBuffer = nullptr;
-
+// Lights
+XMFLOAT4 LightPosition(g_EyePosition);
 Light					g_Lighting;
-XMMATRIX                g_View;
-XMMATRIX                g_Projection;
 
+// Window Size
 int						g_viewWidth;
 int						g_viewHeight;
 
+//GameObjects
 DrawableGameObject		g_GameObject;
 
 //Camera
-Camera* g_pCamera0;
-Camera* g_pCurrentCamera;
-
+XMMATRIX                g_View;
+XMMATRIX                g_Projection;
+Camera* g_pCamera0 = nullptr;
+Camera* g_pCurrentCamera = nullptr;
 float currentPosZ = -3.0f;
 float currentPosX = 0.0f;
 float currentPosY = 0.0f;
 float rotationX = 0.0f;
 float rotationY = 0.0f;
 
-#include <dinput.h>
-
-IDirectInputDevice8* DIMouse;
-DIMOUSESTATE mouseLastState;
-LPDIRECTINPUT8 DirectInput;
-
-HRESULT hr;
-
-XMFLOAT4 LightPosition(g_EyePosition);
-
+// ImGui
 wstring shaderName(L"shader.fx");
 const wchar_t* filename = shaderName.c_str();
 
+// Post-Processing
 bool RenderToTexture = false;
 
-//--------------------------------------------------------------------------------------d
-// Entry point to the program. Initializes everything and goes into a message processing 
-// loop. Idle time is used to render the scene.
-//--------------------------------------------------------------------------------------
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -136,13 +136,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 	if (FAILED(InitDevice()))
 	{
 		CleanupDevice();
-		return 0;
-	}
-
-	if (!InitDirectInput(hInstance))
-	{
-		MessageBox(0, L"Direct Input Initialization - Failed",
-			L"Error", MB_OK);
 		return 0;
 	}
 
@@ -174,10 +167,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 	return (int)msg.wParam;
 }
 
-
-//--------------------------------------------------------------------------------------
-// Register class and create window
-//--------------------------------------------------------------------------------------
 HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow)
 {
 	// Register class
@@ -217,12 +206,6 @@ HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow)
 	return S_OK;
 }
 
-
-//--------------------------------------------------------------------------------------
-// Helper for compiling shaders with D3DCompile
-//
-// With VS 11, we could load up prebuilt .cso files instead...
-//--------------------------------------------------------------------------------------
 HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut)
 {
 	HRESULT hr = S_OK;
@@ -256,10 +239,6 @@ HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCS
 	return S_OK;
 }
 
-
-//--------------------------------------------------------------------------------------
-// Create Direct3D device and swap chain
-//--------------------------------------------------------------------------------------
 HRESULT InitDevice()
 {
 
@@ -573,10 +552,6 @@ HRESULT InitDevice()
 	return S_OK;
 }
 
-// ***************************************************************************************
-// InitMesh
-// ***************************************************************************************
-
 HRESULT		InitMesh()
 {
 	// Compile the vertex shader
@@ -714,9 +689,6 @@ HRESULT		InitMesh()
 	return hr;
 }
 
-// ***************************************************************************************
-// InitWorld (Initialize)
-// ***************************************************************************************
 HRESULT		InitWorld(int width, int height, HWND hwnd)
 {
 	// Initialize the view matrix
@@ -751,10 +723,6 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	return S_OK;
 }
 
-
-//--------------------------------------------------------------------------------------
-// Clean up the objects we've created
-//--------------------------------------------------------------------------------------
 void CleanupDevice()
 {
 	g_GameObject.cleanup();
@@ -768,9 +736,6 @@ void CleanupDevice()
 	if (g_pImmediateContext1) g_pImmediateContext1->Flush();
 	g_pImmediateContext->Flush();
 
-	DIMouse->Unacquire();
-	DirectInput->Release();
-
 	if (g_pLightConstantBuffer)	g_pLightConstantBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pConstantBuffer) g_pConstantBuffer->Release();
@@ -779,6 +744,10 @@ void CleanupDevice()
 	if (g_pDepthStencil) g_pDepthStencil->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
 	if (g_pRenderTargetView) g_pRenderTargetView->Release();
+	if (g_pRTTRenderTargetView) g_pRTTRenderTargetView->Release();
+	if (g_pQuadPS) g_pQuadPS->Release();
+	if (g_pQuadVS) g_pQuadVS->Release();
+	if (g_pQuadLayout) g_pQuadLayout->Release();
 	if (g_pSwapChain1) g_pSwapChain1->Release();
 	if (g_pSwapChain) g_pSwapChain->Release();
 	if (g_pImmediateContext1) g_pImmediateContext1->Release();
@@ -796,11 +765,6 @@ void CleanupDevice()
 	if (debugDevice)
 		debugDevice->Release();
 }
-
-
-//--------------------------------------------------------------------------------------
-// Called every time the application receives a message
-//--------------------------------------------------------------------------------------
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -841,7 +805,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-void setupLightForRender()
+void SetupLightForRender()
 {
 	g_Lighting.Enabled = static_cast<int>(true);
 	g_Lighting.LightType = DirectionalLight;
@@ -855,7 +819,6 @@ void setupLightForRender()
 
 	XMFLOAT4 temp4 = { temp.x, temp.y, temp.z, 0 };
 
-
 	LightPropertiesConstantBuffer lightProperties;
 	//lightProperties.EyePosition = g_Lighting.Position;
 	lightProperties.EyePosition = temp4;
@@ -863,7 +826,7 @@ void setupLightForRender()
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 }
 
-float calculateDeltaTime()
+float CalculateDeltaTime()
 {
 	// Update our time
 	static float deltaTime = 0.0f;
@@ -889,68 +852,34 @@ float calculateDeltaTime()
 	return deltaTime;
 }
 
-bool InitDirectInput(HINSTANCE hInstance)
-{
-	hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&DirectInput, NULL);
-	hr = DirectInput->CreateDevice(GUID_SysMouse, &DIMouse, NULL);
-	hr = DIMouse->SetDataFormat(&c_dfDIMouse);
-	hr = DIMouse->SetCooperativeLevel(g_hWnd, DISCL_FOREGROUND | DISCL_NOWINKEY);
-	return true;
-}
-
 void DetectInput(double deltaTime)
 {
 	if (GetAsyncKeyState('W'))
 	{
 		currentPosZ += 0.1f * cos(rotationX);
 		currentPosX += 0.1f * sin(rotationX);
+		currentPosY += 0.1f * sin(rotationY);
 	}
 	if (GetAsyncKeyState('S'))
 	{
 		currentPosZ -= 0.1f * cos(rotationX);
 		currentPosX -= 0.1f * sin(rotationX);
+		currentPosY += 0.1f * sin(rotationY);
 	}
-
-	//if (GetAsyncKeyState(0x0001))
-	//{
-	//	DIMOUSESTATE mouseState;
-
-	//	DIMouse->Acquire();
-
-	//	DIMouse->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState);
-
-	//	if (mouseState.lX != mouseLastState.lX)
-	//	{
-	//		rotationX += (mouseState.lX * 0.002f);
-	//	}
-	//	if (mouseState.lY != mouseLastState.lY)
-	//	{
-	//		rotationY -= (mouseState.lY * 0.002f);
-	//	}
-	//	mouseLastState = mouseState;
-	//}
 
 	return;
 }
 
-//--------------------------------------------------------------------------------------
-// Constantly Updates The Scene 
-//--------------------------------------------------------------------------------------
 void UpdateCamera()
 {
-	float deltaTime = calculateDeltaTime(); // capped at 60 fps
+	float deltaTime = CalculateDeltaTime(); // capped at 60 fps
 	if (deltaTime == 0.0f)
 		return;
 
-	if (GetAsyncKeyState('5'))
-	{
-		Debug::GetInstance().DebugNum(5);
-	}
-
 	DetectInput(deltaTime);
 
-	g_pCurrentCamera->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY, currentPosZ - cos(rotationX)));
-	g_pCurrentCamera->SetLookAt(XMFLOAT3(currentPosX, rotationY, currentPosZ));
+	g_pCurrentCamera->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY - sin(rotationY), currentPosZ - cos(rotationX)));
+	g_pCurrentCamera->SetLookAt(XMFLOAT3(currentPosX, currentPosY, currentPosZ));
 	g_pCurrentCamera->SetView();
 
 	g_GameObject.update(deltaTime, g_pImmediateContext);
@@ -967,11 +896,11 @@ void SetShader(wstring fn)
 
 void IMGUI()
 {
+	SetupLightForRender();
 	// IMGUI
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-	setupLightForRender();
 	ImGui::Begin("Debug Window");
 
 	ImGui::SetWindowSize(ImVec2(500.0f, 500.0f));
@@ -979,12 +908,12 @@ void IMGUI()
 	if (ImGui::CollapsingHeader("Camera"))
 	{
 		ImGui::Text("Camera Position");
-		ImGui::DragFloat("Camera Pos X", &currentPosX, 0.005f);
-		ImGui::DragFloat("Camera Pos Y", &currentPosY, 0.005f);
-		ImGui::DragFloat("Camera Pos Z", &currentPosZ, 0.005f);
+		ImGui::DragFloat("Camera Pos X", &currentPosX, 0.05f);
+		ImGui::DragFloat("Camera Pos Y", &currentPosY, 0.05f);
+		ImGui::DragFloat("Camera Pos Z", &currentPosZ, 0.05f);
 		ImGui::Text("Camera Rotation");
-		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.005f);
-		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.005f);
+		ImGui::DragFloat("Rotate on the X Axis", &rotationX, 0.05f);
+		ImGui::DragFloat("Rotate on the Y Axis", &rotationY, 0.05f);
 	}
 	if (ImGui::CollapsingHeader("Lighting"))
 	{
@@ -1055,16 +984,11 @@ void IMGUI()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-//--------------------------------------------------------------------------------------
-// Render a frame
-//--------------------------------------------------------------------------------------
 void Render()
 {
-	float t = calculateDeltaTime();
+	float t = CalculateDeltaTime();
 	if (t == 0.0f)
 		return;
-
-	UpdateCamera();
 
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
@@ -1115,12 +1039,10 @@ void Render()
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
 }
-//--------------------------------------------------------------------------------------
-// Render To Texture
-//--------------------------------------------------------------------------------------
+
 void RenderToTarget()
 {
-	float t = calculateDeltaTime();
+	float t = CalculateDeltaTime();
 	if (t == 0.0f)
 		return;
 
@@ -1157,7 +1079,6 @@ void RenderToTarget()
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	//Pixel shader
@@ -1166,7 +1087,7 @@ void RenderToTarget()
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pConstantBuffer);
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 	g_GameObject.draw(g_pImmediateContext);
 
