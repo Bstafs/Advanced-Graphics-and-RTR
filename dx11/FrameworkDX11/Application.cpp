@@ -112,7 +112,7 @@ XMMATRIX                g_View;
 XMMATRIX                g_Projection;
 Camera* g_pCamera0 = nullptr;
 Camera* g_pCurrentCamera = nullptr;
-float currentPosZ = -3.0f;
+float currentPosZ = -2.0f;
 float currentPosX = 0.0f;
 float currentPosY = 0.0f;
 float rotationX = 0.0f;
@@ -854,12 +854,14 @@ float CalculateDeltaTime()
 
 void DetectInput(double deltaTime)
 {
+	// Forward
 	if (GetAsyncKeyState('W'))
 	{
 		currentPosZ += 0.1f * cos(rotationX);
 		currentPosX += 0.1f * sin(rotationX);
 		currentPosY += 0.1f * sin(rotationY);
 	}
+	// Backwards
 	if (GetAsyncKeyState('S'))
 	{
 		currentPosZ -= 0.1f * cos(rotationX);
@@ -867,22 +869,26 @@ void DetectInput(double deltaTime)
 		currentPosY += 0.1f * sin(rotationY);
 	}
 
+	// Right
 	if (GetAsyncKeyState('D'))
 	{
 		rotationX += 0.1f;
 	}
+	// Left
 	if (GetAsyncKeyState('A'))
 	{
 		rotationX -= 0.1f;
 	}
 
-	if (GetAsyncKeyState('Q'))
-	{
-		rotationY -= 0.1f;
-	}
+	// Up
 	if (GetAsyncKeyState('E'))
 	{
 		rotationY += 0.1f;
+	}
+	// Down
+	if (GetAsyncKeyState('Q'))
+	{
+		rotationY -= 0.1f;
 	}
 
 	return;
