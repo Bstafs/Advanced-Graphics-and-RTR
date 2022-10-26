@@ -1127,7 +1127,7 @@ void RenderToTarget()
 	// First Render
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::DarkBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Black);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
