@@ -112,9 +112,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Tutorial01.rc" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="Resources\color.dds">
       <Filter>.dds</Filter>
     </Image>
@@ -147,5 +144,13 @@
     <Filter Include=".dds">
       <UniqueIdentifier>{0d080645-f762-47df-997b-a41201819a60}</UniqueIdentifier>
     </Filter>
+    <Filter Include=".rc">
+      <UniqueIdentifier>{7ce2eb03-da12-4dfd-aed5-b173e3ae5a59}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Tutorial01.rc">
+      <Filter>.rc</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

@@ -9,7 +9,7 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer ConstantBuffer : register(b1)
+cbuffer ConstantBuffer : register(b6)
 {
     matrix World;
     matrix View;
@@ -46,11 +46,10 @@ struct QuadVS_Output
     float2 Tex : TEXCOORD0;
 };
 
-float4 MotionBlurr(float2 tc)
+float4 GaussianBlur(float2 texCoords)
 {
-    float2 texCoords = tc;
     float zOverW = txDiffuse.Sample(samLinear, texCoords);
-    
+
     float4 H = float4(texCoords.x * 2 - 1, (1 - texCoords.y) * 2 - 1, zOverW, 1);
     float4 D = mul(H, Projection);
     
@@ -69,15 +68,17 @@ float4 MotionBlurr(float2 tc)
     int numberOfSamples = 10;
     
     for (int i = 1; i < numberOfSamples; ++i, texCoords += velocity)
-    {
-        float4 currentColour = txDiffuse.Sample(samLinear, texCoords);
-        colour += currentColour;
-    }
+        for (int i = 1; i < 5; ++i)
+        {
+            float4 currentColour = txDiffuse.Sample(samLinear, texCoords);
+            colour += currentColour;
+        }
     
     float4 finalColour = colour / numberOfSamples;
     
     return finalColour;
 }
+
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -91,10 +92,10 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-float4 QuadPS(QuadVS_Output Input) : SV_TARGET
+float4 QuadPS(QuadVS_Output Output) : SV_TARGET
 {
-   // float4 motionBlur = MotionBlurr(Input.Tex);
-   float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+//   float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+    float4 vColour = GaussianBlur(Output.Tex);
 
     return vColour;
 }
