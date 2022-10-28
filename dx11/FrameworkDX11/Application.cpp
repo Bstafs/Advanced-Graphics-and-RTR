@@ -150,6 +150,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
+			UpdateCamera();
 			if (RenderToTexture == true)
 			{
 				RenderToTarget();
@@ -158,7 +159,6 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 			{
 				Render();
 			}
-			UpdateCamera();
 		}
 	}
 
@@ -711,7 +711,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_Lighting.Position.y = 0.0f;
 	g_Lighting.Position.z = -3.0f;
 
-	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10.0f);
+	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 1000.0f);
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
@@ -854,41 +854,43 @@ float CalculateDeltaTime()
 
 void DetectInput(double deltaTime)
 {
+	float mCameraSpeed = 0.00003f;
+
 	// Forward
 	if (GetAsyncKeyState('W'))
 	{
-		currentPosZ += 0.1f * cos(rotationX);
-		currentPosX += 0.1f * sin(rotationX);
-		currentPosY += 0.1f * sin(rotationY);
+		currentPosZ += mCameraSpeed * cos(rotationX);
+		currentPosX += mCameraSpeed * sin(rotationX);
+		currentPosY += mCameraSpeed * sin(rotationY);
 	}
 	// Backwards
 	if (GetAsyncKeyState('S'))
 	{
-		currentPosZ -= 0.1f * cos(rotationX);
-		currentPosX -= 0.1f * sin(rotationX);
-		currentPosY += 0.1f * sin(rotationY);
+		currentPosZ -=mCameraSpeed * cos(rotationX);
+		currentPosX -=mCameraSpeed * sin(rotationX);
+		currentPosY +=mCameraSpeed * sin(rotationY);
 	}
 
 	// Right
 	if (GetAsyncKeyState('D'))
 	{
-		rotationX += 0.1f;
+		rotationX += mCameraSpeed;
 	}
 	// Left
 	if (GetAsyncKeyState('A'))
 	{
-		rotationX -= 0.1f;
+		rotationX -= mCameraSpeed;
 	}
 
 	// Up
 	if (GetAsyncKeyState('E'))
 	{
-		rotationY += 0.1f;
+		rotationY += mCameraSpeed;
 	}
 	// Down
 	if (GetAsyncKeyState('Q'))
 	{
-		rotationY -= 0.1f;
+		rotationY -= mCameraSpeed;
 	}
 
 	return;
@@ -897,16 +899,12 @@ void DetectInput(double deltaTime)
 void UpdateCamera()
 {
 	float deltaTime = CalculateDeltaTime(); // capped at 60 fps
-	if (deltaTime == 0.0f)
-		return;
 
 	DetectInput(deltaTime);
 
 	g_pCurrentCamera->SetPosition(XMFLOAT3(currentPosX - sin(rotationX), currentPosY - sin(rotationY), currentPosZ - cos(rotationX)));
 	g_pCurrentCamera->SetLookAt(XMFLOAT3(currentPosX, currentPosY, currentPosZ));
 	g_pCurrentCamera->SetView();
-
-	g_GameObject.update(deltaTime, g_pImmediateContext);
 
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
