@@ -68,12 +68,14 @@ float4 GaussianBlur(float2 texCoords)
     int numberOfSamples = 10;
     
     for (int i = 1; i < numberOfSamples; ++i, texCoords += velocity)
+    {
+    
         for (int i = 1; i < 5; ++i)
         {
             float4 currentColour = txDiffuse.Sample(samLinear, texCoords);
             colour += currentColour;
         }
-    
+    }
     float4 finalColour = colour / numberOfSamples;
     
     return finalColour;

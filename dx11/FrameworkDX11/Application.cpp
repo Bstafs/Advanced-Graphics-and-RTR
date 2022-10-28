@@ -883,7 +883,7 @@ void DetectInput(double deltaTime)
 	}
 
 	// Up
-	if (GetAsyncKeyState('E'))
+	if (GetAsyncKeyState('E')) 
 	{
 		rotationY += mCameraSpeed;
 	}
