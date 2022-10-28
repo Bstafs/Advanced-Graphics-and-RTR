@@ -27,11 +27,6 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cpp" />
-    <ClCompile Include="DDSTextureLoader.cpp" />
-    <ClCompile Include="Debug.cpp" />
-    <ClCompile Include="DrawableGameObject.cpp" />
-    <ClCompile Include="Application.cpp" />
     <ClCompile Include="ImGui\imgui.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
@@ -53,15 +48,23 @@
     <ClCompile Include="ImGui\imgui_demo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="Application.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="DDSTextureLoader.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="DrawableGameObject.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Camera.h" />
-    <ClInclude Include="DDSTextureLoader.h" />
-    <ClInclude Include="Debug.h" />
-    <ClInclude Include="DrawableGameObject.h" />
-    <ClInclude Include="Application.h" />
-    <CLInclude Include="resource.h" />
-    <ClInclude Include="structures.h" />
     <ClInclude Include="ImGui\imconfig.h">
       <Filter>ImGui</Filter>
     </ClInclude>
@@ -86,16 +89,47 @@
     <ClInclude Include="ImGui\imstb_truetype.h">
       <Filter>ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="Application.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <ClInclude Include="DDSTextureLoader.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <CLInclude Include="resource.h">
+      <Filter>.h</Filter>
+    </CLInclude>
+    <ClInclude Include="structures.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <ClInclude Include="DrawableGameObject.h">
+      <Filter>.h</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Tutorial01.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Resources\stone.dds" />
-    <Image Include="Resources\conenormal.dds" />
-    <Image Include="Resources\color.dds" />
-    <Image Include="Resources\displacement.dds" />
-    <Image Include="Resources\normals.dds" />
+    <Image Include="Resources\color.dds">
+      <Filter>.dds</Filter>
+    </Image>
+    <Image Include="Resources\conenormal.dds">
+      <Filter>.dds</Filter>
+    </Image>
+    <Image Include="Resources\displacement.dds">
+      <Filter>.dds</Filter>
+    </Image>
+    <Image Include="Resources\normals.dds">
+      <Filter>.dds</Filter>
+    </Image>
+    <Image Include="Resources\stone.dds">
+      <Filter>.dds</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ImGui">
@@ -103,6 +137,15 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{0953f343-2670-46fe-8220-ef19ef72be6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".cpp">
+      <UniqueIdentifier>{4b6b1ed2-2a54-497f-8b9e-5cbd3ec5e824}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".h">
+      <UniqueIdentifier>{a03bd718-b2a7-4745-b6a4-de904375e404}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".dds">
+      <UniqueIdentifier>{0d080645-f762-47df-997b-a41201819a60}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

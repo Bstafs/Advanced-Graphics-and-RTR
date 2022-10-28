@@ -13,16 +13,6 @@ struct ConstantBuffer
 	XMMATRIX mView;
 	XMMATRIX mProjection;
 	XMFLOAT4 vOutputColor;
-
-	float fHeightScale;
-	int nMinSamples;
-	int nMaxSamples;
-	int iEffectID;
-
-	float fNearDepth;
-	float fFarDepth;
-	float pad1;
-	float pad2;
 };
 
 struct _Material

@@ -78,13 +78,6 @@ float4 MotionBlurr(float2 tc)
     
     return finalColour;
 }
-
-float4 Bloom(float2 texCoords)
-{
-    float4 vColour = txDiffuse.Sample(samLinear, texCoords);
-    return vColour;
-}
-
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -100,10 +93,8 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
 //--------------------------------------------------------------------------------------
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
-    float4 motionBlur = MotionBlurr(Input.Tex);
-    float4 vColour = Bloom(Input.Tex);
-    
-    vColour.x = 1;
-    
+   // float4 motionBlur = MotionBlurr(Input.Tex);
+   float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+
     return vColour;
 }

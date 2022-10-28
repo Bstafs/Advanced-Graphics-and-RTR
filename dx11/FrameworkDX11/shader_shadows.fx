@@ -15,15 +15,6 @@ cbuffer ConstantBuffer : register(b0)
     matrix View;
     matrix Projection;
     float4 vOutputColor;
-
-    float fHeightScale;
-    int nMinSamples;
-    int nMaxSamples;
-    int iEffectID;
-
-    float fNearDepth;
-    float fFarDepth;
-    float2 pad0;
 }
 
 Texture2D txDiffuse : register(t0);
