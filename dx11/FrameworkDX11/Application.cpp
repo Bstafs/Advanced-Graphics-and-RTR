@@ -32,6 +32,7 @@ void UpdateCamera();
 void DetectInput(double deltaTime);
 void IMGUI();
 void SetShader(wstring filename);
+void SetPPShader(wstring fn);
 
 // Globals
 
@@ -122,8 +123,14 @@ float rotationY = 0.0f;
 wstring shaderName(L"shader.fx");
 const wchar_t* filename = shaderName.c_str();
 
-// Post-Processing
+wstring ppName(L"shaderQuad.fx");
+const wchar_t* ppFileName = ppName.c_str();
+
+LPCSTR quadString1 = "QuadVS";
+LPCSTR quadString2 = "QuadVS";
+
 bool RenderToTexture = false;
+bool quadTexture = false;
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -368,7 +375,7 @@ HRESULT InitDevice()
 
 	//// Create SwapChain
 	UINT maxQuality = 0;
-	UINT sampleCount = 4;
+	UINT sampleCount = 1;
 	DXGI_SWAP_CHAIN_DESC sd = {};
 	sd.BufferCount = 1;
 	sd.BufferDesc.Width = width;
@@ -382,9 +389,9 @@ HRESULT InitDevice()
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.Windowed = TRUE;
 
-	hr = g_pd3dDevice->CheckMultisampleQualityLevels(sd.BufferDesc.Format, sd.SampleDesc.Count, &maxQuality);
+	//hr = g_pd3dDevice->CheckMultisampleQualityLevels(sd.BufferDesc.Format, sd.SampleDesc.Count, &maxQuality);
+	//maxQuality -= 1;
 
-	maxQuality -= 1;
 	sd.SampleDesc.Quality = maxQuality;
 	hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
 
@@ -441,7 +448,7 @@ HRESULT InitDevice()
 	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pRTTRrenderTargetTexture);
 
 	renderTargetViewDesc.Format = textureDesc.Format;
-	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DMS;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
 	// Create the render target view.
@@ -450,7 +457,7 @@ HRESULT InitDevice()
 		return hr;
 
 	shaderResourceViewDesc.Format = textureDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
@@ -510,7 +517,7 @@ HRESULT InitDevice()
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
 	descDSV.Format = descDepth.Format;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descDSV.Texture2D.MipSlice = 0;
 	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
 	if (FAILED(hr))
@@ -591,10 +598,26 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-
+	 
 	// Compile the vertex shader
 	pVSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shaderQuad.fx", "QuadVS", "vs_4_0", &pVSBlob);
+	hr = CompileShaderFromFile(ppFileName, quadString1, "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pQuadVS);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(ppFileName, quadString2, "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -644,7 +667,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	pPSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shaderQuad.fx", "QuadPS", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(ppFileName, "QuadPS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -711,7 +734,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_Lighting.Position.y = 0.0f;
 	g_Lighting.Position.z = -3.0f;
 
-	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 1000.0f);
+	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 10.0f);
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
@@ -866,9 +889,9 @@ void DetectInput(double deltaTime)
 	// Backwards
 	if (GetAsyncKeyState('S'))
 	{
-		currentPosZ -=mCameraSpeed * cos(rotationX);
-		currentPosX -=mCameraSpeed * sin(rotationX);
-		currentPosY +=mCameraSpeed * sin(rotationY);
+		currentPosZ -= mCameraSpeed * cos(rotationX);
+		currentPosX -= mCameraSpeed * sin(rotationX);
+		currentPosY += mCameraSpeed * sin(rotationY);
 	}
 
 	// Right
@@ -883,7 +906,7 @@ void DetectInput(double deltaTime)
 	}
 
 	// Up
-	if (GetAsyncKeyState('E')) 
+	if (GetAsyncKeyState('E'))
 	{
 		rotationY += mCameraSpeed;
 	}
@@ -913,6 +936,12 @@ void UpdateCamera()
 void SetShader(wstring fn)
 {
 	filename = fn.c_str();
+	InitMesh();
+}
+
+void SetPPShader(wstring fn)
+{
+	ppFileName = fn.c_str();
 	InitMesh();
 }
 
@@ -997,6 +1026,19 @@ void IMGUI()
 	{
 		ImGui::Text("Render To Texture");
 		if (ImGui::Checkbox("Render To Texture", &RenderToTexture));
+
+		if (ImGui::Button("Original"))
+		{
+			quadString1 = "QuadVS";
+			quadString2 = "QuadVS";
+			SetPPShader(L"shaderQuad.fx");
+		}
+		if (ImGui::Button("Gaussian Blur"))
+		{
+			quadString1 = "VertexHorizontalBlur";
+			quadString2 = "VertexVerticalBlur";
+			SetPPShader(L"shaderQuadGaussian.fx");
+		}
 	}
 
 	ImGui::End();
@@ -1067,7 +1109,7 @@ void RenderToTarget()
 	// First Render
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Black);
+	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1134,5 +1176,8 @@ void RenderToTarget()
 
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
+
+	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
+	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
 
 }

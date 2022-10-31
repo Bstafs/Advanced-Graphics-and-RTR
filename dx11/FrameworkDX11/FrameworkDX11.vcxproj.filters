@@ -23,7 +23,10 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="shaderQuad.fx">
-      <Filter>Shaders</Filter>
+      <Filter>PostProcessing</Filter>
+    </FxCompile>
+    <FxCompile Include="shaderQuadGaussian.fx">
+      <Filter>PostProcessing</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -63,6 +66,8 @@
     <ClCompile Include="DrawableGameObject.cpp">
       <Filter>.cpp</Filter>
     </ClCompile>
+    <ClCompile Include="VerticalBlurShader.cpp" />
+    <ClCompile Include="HorizontalBlurShader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -110,6 +115,8 @@
     <ClInclude Include="DrawableGameObject.h">
       <Filter>.h</Filter>
     </ClInclude>
+    <ClInclude Include="VerticalBlurShader.h" />
+    <ClInclude Include="HorizontalBlurShader.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\color.dds">
@@ -146,6 +153,9 @@
     </Filter>
     <Filter Include=".rc">
       <UniqueIdentifier>{7ce2eb03-da12-4dfd-aed5-b173e3ae5a59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PostProcessing">
+      <UniqueIdentifier>{0e79459d-ceee-4ffa-b7e0-10f95da926fa}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

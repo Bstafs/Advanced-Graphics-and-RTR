@@ -9,7 +9,9 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer ConstantBuffer : register(b6)
+Texture2D txDiffuse : register(t0);
+
+cbuffer ConstantBuffer : register(b0)
 {
     matrix World;
     matrix View;
@@ -17,15 +19,13 @@ cbuffer ConstantBuffer : register(b6)
     float4 vOutputColor;
 }
 
-Texture2D txDiffuse : register(t0);
-
 SamplerState samLinear : register(s0)
 {
-    Filter = ANISOTROPIC;
-    MaxAnisotropy = 4;
+	Filter = ANISOTROPIC;
+	MaxAnisotropy = 4;
 
-    AddressU = WRAP;
-    AddressV = WRAP;
+	AddressU = WRAP;
+	AddressV = WRAP;
 };
 
 #define MAX_LIGHTS 1
@@ -36,68 +36,32 @@ SamplerState samLinear : register(s0)
 //--------------------------------------------------------------------------------------
 struct QuadVS_Input
 {
-    float4 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : POSITION;
+	float2 Tex : TEXCOORD0;
 };
 
 struct QuadVS_Output
 {
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : SV_POSITION;
+	float2 Tex : TEXCOORD0;
 };
-
-float4 GaussianBlur(float2 texCoords)
-{
-    float zOverW = txDiffuse.Sample(samLinear, texCoords);
-
-    float4 H = float4(texCoords.x * 2 - 1, (1 - texCoords.y) * 2 - 1, zOverW, 1);
-    float4 D = mul(H, Projection);
-    
-    float4 worldPos = D / D.w;
-    
-    float4 currentPos = H;
-    float4 previousPos = mul(worldPos, Projection);
-    
-    previousPos /= previousPos.w;
-    
-    float2 velocity = (currentPos - previousPos) / 2.0;
-    
-    float4 colour = txDiffuse.Sample(samLinear, texCoords);
-    texCoords += velocity;
-    
-    int numberOfSamples = 10;
-    
-    for (int i = 1; i < numberOfSamples; ++i, texCoords += velocity)
-    {
-    
-        for (int i = 1; i < 5; ++i)
-        {
-            float4 currentColour = txDiffuse.Sample(samLinear, texCoords);
-            colour += currentColour;
-        }
-    }
-    float4 finalColour = colour / numberOfSamples;
-    
-    return finalColour;
-}
 
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
 QuadVS_Output QuadVS(QuadVS_Input Input)
 {
-    QuadVS_Output Output;
+	QuadVS_Output Output;
     Output.Pos = Input.Pos;
-    Output.Tex = Input.Tex;  
-    return Output;
+    Output.Tex = Input.Tex;
+	return Output;
 }
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-float4 QuadPS(QuadVS_Output Output) : SV_TARGET
+float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
-//   float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
-    float4 vColour = GaussianBlur(Output.Tex);
-
+    float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+    
     return vColour;
 }

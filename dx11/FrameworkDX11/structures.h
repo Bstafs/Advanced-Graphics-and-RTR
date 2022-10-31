@@ -6,7 +6,6 @@ using namespace DirectX;
 // Structures
 //--------------------------------------------------------------------------------------
 
-
 struct ConstantBuffer
 {
 	XMMATRIX mWorld;
