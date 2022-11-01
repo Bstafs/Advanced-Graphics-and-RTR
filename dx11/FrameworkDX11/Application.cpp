@@ -997,6 +997,10 @@ void IMGUI()
 		{
 			SetShader(L"shader.fx");
 		}
+		if (ImGui::Button("Basic Shader"))
+		{
+			SetShader(L"shader_basic.fx");
+		}
 		if (ImGui::Button("Normal Shader"))
 		{
 			SetShader(L"shader_normal.fx");

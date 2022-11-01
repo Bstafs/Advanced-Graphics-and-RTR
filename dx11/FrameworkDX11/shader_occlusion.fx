@@ -196,8 +196,8 @@ float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
 
 float2 ParallaxOcclusionMapping(float2 texCoords,out float parallaxHeight,float3 viewDir)
 {
-    float minLayers = 0.0f;
-    float maxLayers = 32.0f;
+    float minLayers = 15.0f;
+    float maxLayers = 30.0f;
     float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0.0, 0.0, 1.0), viewDir)));
 
     float layerHeight = 1.0 / numLayers;

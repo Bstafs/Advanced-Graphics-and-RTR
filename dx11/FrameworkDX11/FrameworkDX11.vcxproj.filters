@@ -28,6 +28,9 @@
     <FxCompile Include="shaderQuadGaussian.fx">
       <Filter>PostProcessing</Filter>
     </FxCompile>
+    <FxCompile Include="shader_basic.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">
