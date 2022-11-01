@@ -6,12 +6,20 @@ using namespace DirectX;
 // Structures
 //--------------------------------------------------------------------------------------
 
+#define SAMPLE_COUNT 15
+
 struct ConstantBuffer
 {
 	XMMATRIX mWorld;
 	XMMATRIX mView;
 	XMMATRIX mProjection;
 	XMFLOAT4 vOutputColor;
+};
+
+struct BlurBuffer
+{
+	bool horizontal;
+	XMFLOAT3 Padding01;
 };
 
 struct _Material

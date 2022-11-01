@@ -69,8 +69,6 @@
     <ClCompile Include="DrawableGameObject.cpp">
       <Filter>.cpp</Filter>
     </ClCompile>
-    <ClCompile Include="VerticalBlurShader.cpp" />
-    <ClCompile Include="HorizontalBlurShader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -118,8 +116,6 @@
     <ClInclude Include="DrawableGameObject.h">
       <Filter>.h</Filter>
     </ClInclude>
-    <ClInclude Include="VerticalBlurShader.h" />
-    <ClInclude Include="HorizontalBlurShader.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\color.dds">

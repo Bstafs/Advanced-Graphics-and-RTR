@@ -209,7 +209,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords,out float parallaxHeight,float3
     float2 currentTexCoords = texCoords;
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
 
-    [loop]
+    [unroll(30)]
     while (currentLayerHeight < parallaxMap)
     {
         currentTexCoords -= deltaTexCoords;
@@ -249,7 +249,7 @@ float ParallaxShadowsRedon(float2 texCoords, float3 lightDir)
     float2 P = lightDir.xy / lightDir.z * 0.1;
     float2 deltaTexCoords = P / numLayers; 
     
-    [loop]
+    [unroll(30)]
     while (currentLayerDepth <= currentDepthValue && currentLayerDepth > 0.0)
     {
         currentTexCoords += deltaTexCoords;

@@ -216,7 +216,7 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 viewDir)
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
 
     // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
+    [unroll(15)] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
     while (parallaxMap > currentLayerHeight)
     {
         currentLayerHeight += layerHeight;

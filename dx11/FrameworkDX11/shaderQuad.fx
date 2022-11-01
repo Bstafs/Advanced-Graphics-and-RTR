@@ -11,12 +11,10 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register(t0);
 
-cbuffer ConstantBuffer : register(b0)
+cbuffer BlurBuffer : register(b4)
 {
-    matrix World;
-    matrix View;
-    matrix Projection;
-    float4 vOutputColor;
+    bool horizontal;
+    float3 padding;
 }
 
 SamplerState samLinear : register(s0)
@@ -63,5 +61,6 @@ float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
     float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
     
+	
     return vColour;
 }

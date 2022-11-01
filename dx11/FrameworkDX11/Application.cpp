@@ -33,7 +33,7 @@ void DetectInput(double deltaTime);
 void IMGUI();
 void SetShader(wstring filename);
 void SetPPShader(wstring fn);
-
+float ComputeGaussian(float n, float theta);
 // Globals
 
 // DirectX Setup
@@ -80,6 +80,7 @@ ID3D11InputLayout* g_pQuadLayout = nullptr;
 // Buffers
 ID3D11Buffer* g_pConstantBuffer = nullptr;
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
+ID3D11Buffer* g_pBlurBuffer = nullptr;
 ID3D11Buffer* g_pQuadVB = nullptr;
 ID3D11Buffer* g_pQuadIB = nullptr;
 
@@ -601,23 +602,7 @@ HRESULT		InitMesh()
 	 
 	// Compile the vertex shader
 	pVSBlob = nullptr;
-	hr = CompileShaderFromFile(ppFileName, quadString1, "vs_4_0", &pVSBlob);
-	if (FAILED(hr))
-	{
-		MessageBox(nullptr,
-			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
-		return hr;
-	}
-
-	// Create the vertex shader
-	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pQuadVS);
-	if (FAILED(hr))
-	{
-		pVSBlob->Release();
-		return hr;
-	}
-	pVSBlob = nullptr;
-	hr = CompileShaderFromFile(ppFileName, quadString2, "vs_4_0", &pVSBlob);
+	hr = CompileShaderFromFile(ppFileName, "QuadVS", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -709,6 +694,15 @@ HRESULT		InitMesh()
 		return hr;
 
 
+	// Create the blur constant buffer
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(BlurBuffer);
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.CPUAccessFlags = 0;
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pBlurBuffer);
+	if (FAILED(hr))
+		return hr;
+
 	return hr;
 }
 
@@ -762,6 +756,7 @@ void CleanupDevice()
 	if (g_pLightConstantBuffer)	g_pLightConstantBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pConstantBuffer) g_pConstantBuffer->Release();
+	if (g_pBlurBuffer) g_pBlurBuffer->Release();
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
@@ -877,7 +872,7 @@ float CalculateDeltaTime()
 
 void DetectInput(double deltaTime)
 {
-	float mCameraSpeed = 0.00003f;
+	float mCameraSpeed = 0.000008f;
 
 	// Forward
 	if (GetAsyncKeyState('W'))
@@ -1028,20 +1023,24 @@ void IMGUI()
 	}
 	if (ImGui::CollapsingHeader("Post-Processing"))
 	{
-		ImGui::Text("Render To Texture");
-		if (ImGui::Checkbox("Render To Texture", &RenderToTexture));
-
+		ImGui::Text("Reset Render To Texture");
+		if (ImGui::Button("Reset Render"))
+		{
+			RenderToTexture = false;
+		}
+		ImGui::Text("Post-Processing Effects");
 		if (ImGui::Button("Original"))
 		{
-			quadString1 = "QuadVS";
-			quadString2 = "QuadVS";
 			SetPPShader(L"shaderQuad.fx");
 		}
 		if (ImGui::Button("Gaussian Blur"))
 		{
-			quadString1 = "VertexHorizontalBlur";
-			quadString2 = "VertexVerticalBlur";
 			SetPPShader(L"shaderQuadGaussian.fx");
+		}
+		ImGui::Text("Render To Texture");
+		if (ImGui::Button("Render To Texture"))
+		{
+			RenderToTexture = true;
 		}
 	}
 
@@ -1135,6 +1134,9 @@ void RenderToTarget()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
+	BlurBuffer cb2;
+	cb2.horizontal = true;
+	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 	// Render the cube
 	//Vertex Shader
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
@@ -1153,7 +1155,6 @@ void RenderToTarget()
 	g_GameObject.draw(g_pImmediateContext);
 
 	// Second Render
-
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// Clear the depth buffer to 1.0 (max depth)

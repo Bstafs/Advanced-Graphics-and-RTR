@@ -224,7 +224,7 @@ float2 ParallaxSteepMapping(float2 texCoords, float3 viewDir)
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
 
     // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
+    [unroll(15)] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
     while (currentLayerHeight < parallaxMap)
     {
         currentLayerHeight += layerHeight;
@@ -258,7 +258,7 @@ float2 ParallaxReliefMapping(float2 texCoords, float3 viewDir)
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).x;
 
     // While point is above surface
-    [loop] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
+   [unroll(15)] // For some reason hlsl can't tell this is a loop / Complains about compiling and so we have to "unroll it" 
     while (parallaxMap > currentLayerHeight)
     {
         currentLayerHeight += layerHeight;
@@ -311,7 +311,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords,out float parallaxHeight,float3
     float2 currentTexCoords = texCoords;
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
 
-    [loop]
+    [unroll(30)]
     while (currentLayerHeight < parallaxMap)
     {
         currentTexCoords -= deltaTexCoords;
@@ -351,7 +351,7 @@ float ParallaxShadowsRedon(float2 texCoords, float3 lightDir)
     float2 P = lightDir.xy / lightDir.z * 0.1;
     float2 deltaTexCoords = P / numLayers; 
     
-    [loop]
+    [unroll(30)]
     while (currentLayerDepth <= currentDepthValue && currentLayerDepth > 0.0)
     {
         currentTexCoords += deltaTexCoords;

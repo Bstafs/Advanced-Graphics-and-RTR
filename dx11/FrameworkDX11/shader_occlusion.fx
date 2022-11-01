@@ -209,7 +209,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords,out float parallaxHeight,float3
     float2 currentTexCoords = texCoords;
     float parallaxMap = txParrallax.Sample(samLinear, currentTexCoords).r;
 
-    [loop]
+    [unroll(30)]
     while (currentLayerHeight < parallaxMap)
     {
         currentTexCoords -= deltaTexCoords;
