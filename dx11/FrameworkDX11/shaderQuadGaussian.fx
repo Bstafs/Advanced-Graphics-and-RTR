@@ -11,10 +11,10 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register(t0);
 
-cbuffer BlurBuffer : register(b4)
+cbuffer BlurBuffer : register(b3)
 {
     bool horizontal;
-    float3 padding;
+    float3 Padding01;
 }
 
 SamplerState samLinear : register(s0)
@@ -53,34 +53,53 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
     Output.Pos = Input.Pos;
     Output.Tex = Input.Tex;
     return Output;
-    return Output;
 }
+
+float3 GuassianBlur(float2 texCoords)
+{
+    float weight[5] = { 0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216 };
+    
+    float3 vColour = txDiffuse.Sample(samLinear, texCoords).rgb * weight[0];
+    float2 textureOffset = 1.0 / txDiffuse.Sample(samLinear, 0.0);
+    
+    if (horizontal == true)
+    {
+        for (int i = 1; i < 5; i++)
+        {
+            vColour += txDiffuse.Sample(samLinear, texCoords + float2(textureOffset.x * i, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(samLinear, texCoords - float2(textureOffset.x * i, 0.0)).rgb * weight[i];
+        }
+    }
+    else if (horizontal == false)
+    {
+        for (int i = 1; i < 5; i++)
+        {
+            vColour += txDiffuse.Sample(samLinear, texCoords + float2(0.0, textureOffset.y * i)).rgb * weight[i];
+            vColour += txDiffuse.Sample(samLinear, texCoords - float2(0.0, textureOffset.y * i)).rgb * weight[i];
+        }
+    }
+    
+    return vColour;
+}
+
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
-    float weight[5] = { 0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216 };
+    float exposure = 0.5f;
+    const float gamma = 1.5;
+    float3 vBlur = GuassianBlur(Input.Tex);
+    float3 hdrColor = txDiffuse.Sample(samLinear, Input.Tex).rgb;
     
-    float3 vColour = txDiffuse.Sample(samLinear, Input.Tex).rgb * weight[0];
-    float2 textureOffset = 1.0 / txDiffuse.Sample(samLinear, 0.0);
+    // Blend
+    hdrColor += vBlur;
     
-    if (horizontal)
-    {
-        for (int i = 1; i < 5; i++)
-        {
-            vColour += txDiffuse.Sample(samLinear, Input.Tex + float2(textureOffset.x * i, 0.0)).rgb * weight[i];
-            vColour += txDiffuse.Sample(samLinear, Input.Tex - float2(textureOffset.x * i, 0.0)).rgb * weight[i];
-        }
-    }
-    else
-    {
-        for (int i = 1; i < 5; i++)
-        {
-            vColour += txDiffuse.Sample(samLinear, Input.Tex + float2(0.0, textureOffset.y * i)).rgb * weight[i];
-            vColour += txDiffuse.Sample(samLinear, Input.Tex - float2(0.0, textureOffset.y * i)).rgb * weight[i];
-        }
-    }
+    // Tone Mapping
+    float3 vColour = float3(1.0, 1.0,1.0) - exp(-vBlur * exposure);
+    
+    // Gamma Correction
+    vColour = pow(vColour, (1.0 / gamma));
     
     return float4(vColour, 1.0);
 }

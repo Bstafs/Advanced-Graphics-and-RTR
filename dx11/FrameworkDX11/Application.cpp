@@ -53,7 +53,7 @@ IDXGISwapChain* g_pSwapChain = nullptr;
 IDXGISwapChain1* g_pSwapChain1 = nullptr;
 
 // Render Targets
-ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+ID3D11RenderTargetView* g_pRenderTargetView[2];
 ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
 
 // Textures
@@ -410,7 +410,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
+	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView[0]);
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
@@ -524,7 +524,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
 
 
 	// Setup the viewport
@@ -599,7 +599,7 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-	 
+
 	// Compile the vertex shader
 	pVSBlob = nullptr;
 	hr = CompileShaderFromFile(ppFileName, "QuadVS", "vs_4_0", &pVSBlob);
@@ -761,7 +761,7 @@ void CleanupDevice()
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
-	if (g_pRenderTargetView) g_pRenderTargetView->Release();
+	if (g_pRenderTargetView) g_pRenderTargetView[0]->Release();
 	if (g_pRTTRenderTargetView) g_pRTTRenderTargetView->Release();
 	if (g_pQuadPS) g_pQuadPS->Release();
 	if (g_pQuadVS) g_pQuadVS->Release();
@@ -1058,11 +1058,11 @@ void Render()
 		return;
 
 	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView[0], g_pDepthStencilView);
 
 	g_GameObject.update(t, g_pImmediateContext);
 
@@ -1110,23 +1110,26 @@ void RenderToTarget()
 		return;
 
 	// First Render
+	// 
 	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
 	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
+	//Set Render Target
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRTTRenderTargetView, g_pDepthStencilView);
 
+	// Update GameObject
 	g_GameObject.update(t, g_pImmediateContext);
 
-	// get the game object world transform
+	// GameObjects Position
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
 	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
-	// store this and the view / projection in a constant buffer for the vertex shader to use
+	// Render Buffers
 	ConstantBuffer cb1;
 	cb1.mWorld = XMMatrixTranspose(mGO);
 	cb1.mView = XMMatrixTranspose(view);
@@ -1137,29 +1140,38 @@ void RenderToTarget()
 	BlurBuffer cb2;
 	cb2.horizontal = true;
 	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
+
 	// Render the cube
 	//Vertex Shader
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	//Pixel shader
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
+	// Material Buffer
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	// Light Buffer
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pConstantBuffer);
+	// Constant Buffer
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	//Blur Buffer
+	g_pImmediateContext->PSSetConstantBuffers(4, 1, &g_pBlurBuffer);
+	// Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
+	// Draw
 	g_GameObject.draw(g_pImmediateContext);
 
 	// Second Render
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	// Set Render Target
+	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
 
-	// Clear the depth buffer to 1.0 (max depth)
+	// Clear the depth buffer 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	// Render the cube
+
+	cb2.horizontal = false;
+	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 
 	// Set VB and IB for Quad
 	UINT stride = sizeof(SimpleVertexQuad);
@@ -1170,11 +1182,15 @@ void RenderToTarget()
 
 	//Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+
 	//Pixel shader
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
+	//cb2.horizontal = true;
+	//g_pImmediateContext->PSSetConstantBuffers(3, 1, &g_pBlurBuffer);
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
 
+	// Draw Quad
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	IMGUI();
@@ -1182,6 +1198,7 @@ void RenderToTarget()
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
 
+	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
 	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
 
