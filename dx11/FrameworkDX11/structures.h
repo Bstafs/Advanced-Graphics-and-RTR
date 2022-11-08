@@ -18,8 +18,8 @@ struct ConstantBuffer
 
 struct BlurBuffer
 {
-	bool horizontal;
-	XMFLOAT3 Padding01;
+	BOOL horizontal; // 4 bytes HLSL, using bool uses 1 byte and so HLSL can't interpret it unless specified as BOOL
+	XMFLOAT3 padding; // 12 bytes 
 };
 
 struct _Material

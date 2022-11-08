@@ -11,20 +11,15 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register(t0);
 
-cbuffer BlurBuffer : register(b3)
+cbuffer BlurBuffer : register(b0)
 {
     bool horizontal;
-    float3 Padding01;
-}
-
-SamplerState samLinear : register(s0)
-{
-	Filter = ANISOTROPIC;
-	MaxAnisotropy = 4;
-
-	AddressU = WRAP;
-	AddressV = WRAP;
+    float3 padding;
 };
+
+SamplerState bloomBlur : register(s0);
+SamplerState scene : register(s1);
+
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -59,23 +54,23 @@ float3 GuassianBlur(float2 texCoords)
 {
     float weight[5] = { 0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216 };
     
-    float3 vColour = txDiffuse.Sample(samLinear, texCoords).rgb * weight[0];
-    float2 textureOffset = 1.0 / txDiffuse.Sample(samLinear, 0.0);
+    float3 vColour = txDiffuse.Sample(bloomBlur, texCoords).rgb * weight[0];
+    float2 textureOffset = 1.0 / txDiffuse.Sample(bloomBlur, 0.0);
     
     if (horizontal == true)
     {
         for (int i = 1; i < 5; i++)
         {
-            vColour += txDiffuse.Sample(samLinear, texCoords + float2(textureOffset.x * i, 0.0)).rgb * weight[i];
-            vColour += txDiffuse.Sample(samLinear, texCoords - float2(textureOffset.x * i, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(textureOffset.x * i, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(textureOffset.x * i, 0.0)).rgb * weight[i];
         }
     }
     else if (horizontal == false)
     {
         for (int i = 1; i < 5; i++)
         {
-            vColour += txDiffuse.Sample(samLinear, texCoords + float2(0.0, textureOffset.y * i)).rgb * weight[i];
-            vColour += txDiffuse.Sample(samLinear, texCoords - float2(0.0, textureOffset.y * i)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(0.0, textureOffset.y * i)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(0.0, textureOffset.y * i)).rgb * weight[i];
         }
     }
     
@@ -87,20 +82,21 @@ float3 GuassianBlur(float2 texCoords)
 //--------------------------------------------------------------------------------------
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
-    float exposure = 0.5f;
-    const float gamma = 1.5;
-    float3 vBlur = GuassianBlur(Input.Tex);
-    float3 hdrColor = txDiffuse.Sample(samLinear, Input.Tex).rgb;
+    float exposure = 1;
+    const float gamma = 2.2;
+    float3 vBlur = GuassianBlur(Input.Tex).rgb;
+    float3 sceneColour = txDiffuse.Sample(scene, Input.Tex).rgb;
     
-    // Blend
-    hdrColor += vBlur;
+    // Additive Blending
+    sceneColour += vBlur;
     
     // Tone Mapping
-    float3 vColour = float3(1.0, 1.0,1.0) - exp(-vBlur * exposure);
+    float3 vColour = float3(1.0, 1.0, 1.0) - exp(-sceneColour * exposure);
     
     // Gamma Correction
     vColour = pow(vColour, (1.0 / gamma));
     
+    //return vColour;
     return float4(vColour, 1.0);
 }
 

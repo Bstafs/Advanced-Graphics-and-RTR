@@ -668,14 +668,14 @@ HRESULT		InitMesh()
 
 	// Create the constant buffer
 	D3D11_BUFFER_DESC bd = {};
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(SimpleVertex) * 36;
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.CPUAccessFlags = 0;
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(WORD) * 36;        // 36 vertices needed for 12 triangles in a triangle list
-	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bd.CPUAccessFlags = 0;
+	//bd.Usage = D3D11_USAGE_DEFAULT;
+	//bd.ByteWidth = sizeof(SimpleVertex) * 36;
+	//bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	//bd.CPUAccessFlags = 0;
+	//bd.Usage = D3D11_USAGE_DEFAULT;
+	//bd.ByteWidth = sizeof(WORD) * 36;        // 36 vertices needed for 12 triangles in a triangle list
+	//bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//bd.CPUAccessFlags = 0;
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof(ConstantBuffer);
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -1139,12 +1139,14 @@ void RenderToTarget()
 
 	BlurBuffer cb2;
 	cb2.horizontal = true;
+	cb2.padding = XMFLOAT3(1, 1, 1);
 	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 
 	// Render the cube
 	//Vertex Shader
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 	//Pixel shader
@@ -1156,8 +1158,7 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 	// Constant Buffer
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	//Blur Buffer
-	g_pImmediateContext->PSSetConstantBuffers(4, 1, &g_pBlurBuffer);
+
 	// Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 	// Draw
@@ -1169,9 +1170,6 @@ void RenderToTarget()
 
 	// Clear the depth buffer 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	cb2.horizontal = false;
-	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 
 	// Set VB and IB for Quad
 	UINT stride = sizeof(SimpleVertexQuad);
@@ -1186,8 +1184,12 @@ void RenderToTarget()
 	//Pixel shader
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
-	//cb2.horizontal = true;
-	//g_pImmediateContext->PSSetConstantBuffers(3, 1, &g_pBlurBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBuffer);
+	
+	cb2.horizontal = false;
+	cb2.padding = XMFLOAT3(1, 1, 1);
+	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
+
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
 
 	// Draw Quad
