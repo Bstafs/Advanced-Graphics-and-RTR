@@ -72,8 +72,8 @@ float3 GuassianBlur(float2 texCoords)
     {
         for (int i = 1; i < 5; i++)
         {
-            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(textureOffset.y, 0.0)).rgb * weight[i];
-            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(textureOffset.y, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(0.0,textureOffset.y)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(0.0,textureOffset.y)).rgb * weight[i];
         }
     }
     
@@ -86,7 +86,7 @@ float3 GuassianBlur(float2 texCoords)
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
     // Applying Bloom With Guassian Blur
-    float exposure = 1.0;
+    float exposure = 2.0;
     const float gamma = 2.2;
     
     float3 sceneColour = txDiffuse.Sample(bloomBlur, Input.Tex).rgb;

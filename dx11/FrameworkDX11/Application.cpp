@@ -1189,10 +1189,10 @@ void RenderToTarget()
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	//Vertex Shader Quad
+	//V ertex Shader Quad
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 
-	//Pixel shader Quad
+	// Pixel shader Quad
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
 	// Pixel Sampler 
@@ -1211,6 +1211,7 @@ void RenderToTarget()
 	// Draw Quad
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
+	// ImGui
 	IMGUI();
 
 	// Present our back buffer to our front buffer
