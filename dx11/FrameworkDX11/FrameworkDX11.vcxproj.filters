@@ -31,6 +31,9 @@
     <FxCompile Include="shader_basic.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="shaderQuadBloom.fx">
+      <Filter>PostProcessing</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">

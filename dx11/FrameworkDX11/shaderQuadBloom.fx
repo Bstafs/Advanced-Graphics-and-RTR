@@ -85,8 +85,22 @@ float3 GuassianBlur(float2 texCoords)
 //--------------------------------------------------------------------------------------
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
+    // Applying Bloom With Guassian Blur
+    float exposure = 1.0;
+    const float gamma = 2.2;
+    
+    float3 sceneColour = txDiffuse.Sample(bloomBlur, Input.Tex).rgb;
     float3 vBlur = GuassianBlur(Input.Tex).rgb;
-   
-    return float4(vBlur, 1.0);
+    
+    // Additive Blending
+    sceneColour += vBlur;
+    
+    // Tone Mapping
+    float3 vColour = float3(1.0, 1.0, 1.0) - exp(-sceneColour * exposure);
+    
+    // Gamma Correction
+    vColour = pow(vColour, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
+     
+    return float4(vColour, 1.0);
 }
 

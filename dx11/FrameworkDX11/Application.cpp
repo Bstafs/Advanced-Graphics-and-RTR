@@ -1037,6 +1037,10 @@ void IMGUI()
 		{
 			SetPPShader(L"shaderQuadGaussian.fx");
 		}
+		if (ImGui::Button("Bloom"))
+		{
+			SetPPShader(L"shaderQuadBloom.fx");
+		}
 		ImGui::Text("Render To Texture");
 		if (ImGui::Button("Render To Texture"))
 		{
@@ -1110,7 +1114,7 @@ void RenderToTarget()
 		return;
 
 	// First Render
-	// 
+	
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
 	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
@@ -1129,7 +1133,7 @@ void RenderToTarget()
 	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
 	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
-	// Render Buffers
+	// Constant Buffer
 	ConstantBuffer cb1;
 	cb1.mWorld = XMMatrixTranspose(mGO);
 	cb1.mView = XMMatrixTranspose(view);
@@ -1137,59 +1141,71 @@ void RenderToTarget()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
+	// Post Process Buffer
 	BlurBuffer cb2;
 	cb2.horizontal = true;
 	cb2.padding = XMFLOAT3(1, 1, 1);
 	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 
-	// Render the cube
-	//Vertex Shader
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+	// Vertex Shader Layout
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout); 
+	// Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+	// Vertex Constant Buffer
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	// Vertex Light Buffer
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
-	//Pixel shader
+	// Pixel shader
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+	// Pixel Sampler
+	g_pImmediateContext->PSSetSamplers(1, 2, g_GameObject.getTextureSamplerState());
+	// Material Pixel Buffer
 	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
-	// Material Buffer
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	// Light Buffer
+	// Light Pixel Buffer
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	// Constant Buffer
+	// Constant Pixel Buffer
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 
-	// Shader Resource
+	// Shader Pixel Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
+
 	// Draw
 	g_GameObject.draw(g_pImmediateContext);
 
 	// Second Render
+	
 	// Set Render Target
 	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
 
 	// Clear the depth buffer 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	// Set VB and IB for Quad
+	// Set VB, IB and layout for Quad
 	UINT stride = sizeof(SimpleVertexQuad);
 	UINT offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	//Vertex Shader
+	//Vertex Shader Quad
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 
-	//Pixel shader
+	//Pixel shader Quad
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
+	// Pixel Sampler 
+	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
+
+	// Pixel Blur Buffer
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBuffer);
 	
 	cb2.horizontal = false;
 	cb2.padding = XMFLOAT3(1, 1, 1);
 	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
 
+	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
 
 	// Draw Quad
