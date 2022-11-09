@@ -11,11 +11,18 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register(t0);
 
-cbuffer BlurBufferVertical : register(b0)
+cbuffer BlurBufferHorizontal : register(b0)
 {
     bool horizontal;
-    float3 padding;
+    float3 padding01;
 };
+
+cbuffer BlurBufferVertical : register(b1)
+{
+    bool vertical;
+    float3 padding02;
+};
+
 
 
 SamplerState bloomBlur : register(s0);
@@ -59,22 +66,24 @@ float3 GuassianBlur(float2 texCoords)
     float weight[5] = { 0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216 };
     
     float3 vColour = txDiffuse.Sample(bloomBlur, texCoords).rgb * weight[0];
-    float2 textureOffset = 1 / txDiffuse.Sample(bloomBlur, 0.0);  
+    float2 textureOffset = 1 / txDiffuse.Sample(bloomBlur, 0);
+
+    //textureOffset.y = 0.0;
     
     if (horizontal == true)
     {
         for (int i = 1; i < 5; i++)
         {
-            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(textureOffset.x, 0.0)).rgb * weight[i];
-            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(textureOffset.x, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(textureOffset.y * i, 0.0)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(textureOffset.y * i, 0.0)).rgb * weight[i];
         }
     }
-    else if (horizontal == false)
+    if (vertical == true)
     {
         for (int i = 1; i < 5; i++)
         {
-            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(0.0, textureOffset.y)).rgb * weight[i];
-            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(0.0, textureOffset.y)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(0.0, textureOffset.y * i)).rgb * weight[i];
+            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(0.0, textureOffset.y * i)).rgb * weight[i];
         }
     }
     
