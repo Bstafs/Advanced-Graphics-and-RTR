@@ -28,6 +28,15 @@ struct BlurBufferVertical
 	XMFLOAT3 padding02; // 12 bytes 
 };
 
+struct MotionBlurBuffer
+{
+	XMMATRIX mWorld;
+	XMMATRIX mView;
+	XMMATRIX mProjection;
+	XMMATRIX mInverseProjection;
+	XMMATRIX mPreviousProjection;
+	XMFLOAT4 vOutputColor;
+};
 
 struct _Material
 {

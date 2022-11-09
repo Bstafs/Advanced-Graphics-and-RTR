@@ -34,6 +34,9 @@
     <FxCompile Include="shaderQuadBloom.fx">
       <Filter>PostProcessing</Filter>
     </FxCompile>
+    <FxCompile Include="shaderQuadMotion.fx">
+      <Filter>PostProcessing</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">

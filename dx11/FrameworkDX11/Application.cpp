@@ -82,6 +82,7 @@ ID3D11Buffer* g_pConstantBuffer = nullptr;
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
 ID3D11Buffer* g_pBlurBufferVertical = nullptr;
 ID3D11Buffer* g_pBlurBufferHorizontal = nullptr;
+ID3D11Buffer* g_pMotionBlurBuffer = nullptr;
 ID3D11Buffer* g_pQuadVB = nullptr;
 ID3D11Buffer* g_pQuadIB = nullptr;
 
@@ -711,6 +712,15 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
+	// Motion Blur Buffer
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(MotionBlurBuffer);
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.CPUAccessFlags = 0;
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pMotionBlurBuffer);
+	if (FAILED(hr))
+		return hr;
+
 	return hr;
 }
 
@@ -1050,6 +1060,10 @@ void IMGUI()
 		{
 			SetPPShader(L"shaderQuadBloom.fx");
 		}
+		if (ImGui::Button("Motion Blur"))
+		{
+			SetPPShader(L"shaderQuadMotion.fx");
+		}
 		ImGui::Text("Render To Texture");
 		if (ImGui::Button("Render To Texture"))
 		{
@@ -1160,6 +1174,15 @@ void RenderToTarget()
 	cbv.padding02 = XMFLOAT3(1, 1, 1);
 	g_pImmediateContext->UpdateSubresource(g_pBlurBufferVertical, 0, nullptr, &cbv, 0, 0);
 
+	MotionBlurBuffer cbm;;
+	XMMATRIX inverseProj = XMMatrixInverse(nullptr, projection);
+	cbm.mWorld = XMMatrixTranspose(mGO);
+	cbm.mView = XMMatrixTranspose(view);
+	cbm.mProjection = XMMatrixTranspose(projection);
+	cbm.mInverseProjection = XMMatrixTranspose(inverseProj);
+    cbm.vOutputColor = cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pMotionBlurBuffer, 0, nullptr, &cbv, 0, 0);
+
 	// Vertex Shader Layout
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 	// Vertex Shader
@@ -1205,7 +1228,7 @@ void RenderToTarget()
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	//V ertex Shader Quad
+	//Vertex Shader Quad
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 
 	// Pixel shader Quad
@@ -1218,6 +1241,7 @@ void RenderToTarget()
 
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pMotionBlurBuffer);
 
 	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
@@ -1227,6 +1251,9 @@ void RenderToTarget()
 
 	// ImGui
 	IMGUI();
+
+	cbm.mPreviousProjection = XMMatrixTranspose(projection);
+	g_pImmediateContext->UpdateSubresource(g_pMotionBlurBuffer, 0, nullptr, &cbv, 0, 0);
 
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);

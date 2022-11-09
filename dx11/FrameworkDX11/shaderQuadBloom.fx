@@ -94,16 +94,11 @@ float3 Bloom(float2 texCoords)
     float brightness = 1.0;
     const float gamma = 2.2;
     
-    //float3 sceneColour = float3(0, 0, 0);
-    //float3 vBlur = float3(0, 0, 0);
-    
     float3 sceneColour = txDiffuse.Sample(bloomBlur, texCoords).rgb;
     float3 vBlur = GuassianBlur(texCoords).rgb;
     
     // Additive Blending
     sceneColour += vBlur;
-    
-    //float3 vColour = sceneColour;
     
     // Tone Mapping
     float3 vColour = float3(1.0, 1.0, 1.0) - exp(-sceneColour * brightness);
