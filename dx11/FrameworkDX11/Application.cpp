@@ -80,7 +80,8 @@ ID3D11InputLayout* g_pQuadLayout = nullptr;
 // Buffers
 ID3D11Buffer* g_pConstantBuffer = nullptr;
 ID3D11Buffer* g_pLightConstantBuffer = nullptr;
-ID3D11Buffer* g_pBlurBuffer = nullptr;
+ID3D11Buffer* g_pBlurBufferVertical = nullptr;
+ID3D11Buffer* g_pBlurBufferHorizontal = nullptr;
 ID3D11Buffer* g_pQuadVB = nullptr;
 ID3D11Buffer* g_pQuadIB = nullptr;
 
@@ -693,13 +694,20 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
-
 	// Create the blur constant buffer
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(BlurBuffer);
+	bd.ByteWidth = sizeof(BlurBufferHorizontal);
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	bd.CPUAccessFlags = 0;
-	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pBlurBuffer);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pBlurBufferHorizontal);
+	if (FAILED(hr))
+		return hr;
+
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(BlurBufferVertical);
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.CPUAccessFlags = 0;
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pBlurBufferVertical);
 	if (FAILED(hr))
 		return hr;
 
@@ -756,7 +764,8 @@ void CleanupDevice()
 	if (g_pLightConstantBuffer)	g_pLightConstantBuffer->Release();
 	if (g_pVertexLayout) g_pVertexLayout->Release();
 	if (g_pConstantBuffer) g_pConstantBuffer->Release();
-	if (g_pBlurBuffer) g_pBlurBuffer->Release();
+	if (g_pBlurBufferVertical) g_pBlurBufferVertical->Release();
+	if (g_pBlurBufferHorizontal) g_pBlurBufferHorizontal->Release();
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
@@ -1114,7 +1123,7 @@ void RenderToTarget()
 		return;
 
 	// First Render
-	
+
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
 	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
@@ -1141,14 +1150,18 @@ void RenderToTarget()
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-	// Post Process Buffer
-	BlurBuffer cb2;
-	cb2.horizontal = true;
-	cb2.padding = XMFLOAT3(1, 1, 1);
-	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
+	BlurBufferHorizontal cbh;
+	cbh.horizontal = true;
+	cbh.padding01 = XMFLOAT3(1, 1, 1);
+	g_pImmediateContext->UpdateSubresource(g_pBlurBufferHorizontal, 0, nullptr, &cbh, 0, 0);
+
+	BlurBufferVertical cbv;
+	cbv.vertical = true;
+	cbv.padding02 = XMFLOAT3(1, 1, 1);
+	g_pImmediateContext->UpdateSubresource(g_pBlurBufferVertical, 0, nullptr, &cbv, 0, 0);
 
 	// Vertex Shader Layout
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout); 
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 	// Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
 	// Vertex Constant Buffer
@@ -1167,7 +1180,9 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 	// Constant Pixel Buffer
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-
+	// Blur Buffer
+	//g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
+	//g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
 	// Shader Pixel Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 
@@ -1175,12 +1190,13 @@ void RenderToTarget()
 	g_GameObject.draw(g_pImmediateContext);
 
 	// Second Render
-	
 	// Set Render Target
 	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
 
 	// Clear the depth buffer 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	// Post Process Buffer
 
 	// Set VB, IB and layout for Quad
 	UINT stride = sizeof(SimpleVertexQuad);
@@ -1199,11 +1215,9 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
 
 	// Pixel Blur Buffer
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBuffer);
-	
-	cb2.horizontal = false;
-	cb2.padding = XMFLOAT3(1, 1, 1);
-	g_pImmediateContext->UpdateSubresource(g_pBlurBuffer, 0, nullptr, &cb2, 0, 0);
+
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
 
 	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
@@ -1220,5 +1234,4 @@ void RenderToTarget()
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
 	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
-
 }

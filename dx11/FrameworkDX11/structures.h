@@ -16,11 +16,18 @@ struct ConstantBuffer
 	XMFLOAT4 vOutputColor;
 };
 
-struct BlurBuffer
+struct BlurBufferHorizontal
 {
 	BOOL horizontal; // 4 bytes HLSL, using bool uses 1 byte and so HLSL can't interpret it unless specified as BOOL
-	XMFLOAT3 padding; // 12 bytes 
+	XMFLOAT3 padding01; // 12 bytes 
 };
+
+struct BlurBufferVertical
+{
+	BOOL vertical; // 4 bytes HLSL, using bool uses 1 byte and so HLSL can't interpret it unless specified as BOOL
+	XMFLOAT3 padding02; // 12 bytes 
+};
+
 
 struct _Material
 {
