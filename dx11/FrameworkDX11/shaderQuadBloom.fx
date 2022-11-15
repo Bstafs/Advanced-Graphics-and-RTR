@@ -66,8 +66,6 @@ float3 GuassianBlur(float2 texCoords)
     float3 vColour = txDiffuse.Sample(bloomBlur, texCoords).rgb * weight[0];
     float2 textureOffset = 1 / txDiffuse.Sample(bloomBlur, 0);
 
-    //textureOffset.y = 0.0;
-    
     if (horizontal == true)
     {
         for (int i = 1; i < 5; i++)

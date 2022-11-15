@@ -37,6 +37,12 @@
     <FxCompile Include="shaderQuadMotion.fx">
       <Filter>PostProcessing</Filter>
     </FxCompile>
+    <FxCompile Include="deffered_shader.fx">
+      <Filter>DeferredShading</Filter>
+    </FxCompile>
+    <FxCompile Include="deffered_shader_light.fx">
+      <Filter>DeferredShading</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">
@@ -161,6 +167,9 @@
     </Filter>
     <Filter Include="PostProcessing">
       <UniqueIdentifier>{0e79459d-ceee-4ffa-b7e0-10f95da926fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DeferredShading">
+      <UniqueIdentifier>{cabb2129-d845-4d41-9442-2646aca46b2b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

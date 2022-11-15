@@ -33,7 +33,7 @@ void DetectInput(double deltaTime);
 void IMGUI();
 void SetShader(wstring filename);
 void SetPPShader(wstring fn);
-float ComputeGaussian(float n, float theta);
+void RenderDeferred();
 // Globals
 
 // DirectX Setup
@@ -53,16 +53,22 @@ IDXGISwapChain* g_pSwapChain = nullptr;
 IDXGISwapChain1* g_pSwapChain1 = nullptr;
 
 // Render Targets
-ID3D11RenderTargetView* g_pRenderTargetView[2];
+ID3D11RenderTargetView* g_pRenderTargetView;
 ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
+ID3D11RenderTargetView* g_pGbufferRenderTargetView[6];
+ID3D11RenderTargetView* g_pGbufferRenderLightingTargetView = nullptr;
 
 // Textures
 ID3D11Texture2D* g_pDepthStencil = nullptr;
 ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
+ID3D11Texture2D* g_pGbufferTargetTextures[6];
+ID3D11Texture2D* g_pGbufferTargetLightingTextures = nullptr;
 
 // Shader Resources
 ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
+ID3D11ShaderResourceView* g_pGbufferShaderResourceView[6];
+ID3D11ShaderResourceView* g_pGbufferShaderResourceLightingView = nullptr;
 
 // Stencils
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
@@ -70,9 +76,15 @@ ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 // Shaders
 ID3D11VertexShader* g_pVertexShader = nullptr;
 ID3D11PixelShader* g_pPixelShader = nullptr;
+
 ID3D11VertexShader* g_pQuadVS = nullptr;
 ID3D11PixelShader* g_pQuadPS = nullptr;
 
+ID3D11VertexShader* g_pGbufferVS = nullptr;
+ID3D11PixelShader* g_pGbufferPS = nullptr;
+
+ID3D11VertexShader* g_pGbufferLightingVS = nullptr;
+ID3D11PixelShader* g_pGbufferLightingPS = nullptr;
 // Input layouts
 ID3D11InputLayout* g_pVertexLayout = nullptr;
 ID3D11InputLayout* g_pQuadLayout = nullptr;
@@ -134,6 +146,9 @@ LPCSTR quadString2 = "QuadVS";
 
 bool RenderToTexture = false;
 bool quadTexture = false;
+bool RenderToDeferred = true;
+
+int deferredRenderState = 0;
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -167,7 +182,14 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 			}
 			else if (RenderToTexture == false)
 			{
-				Render();
+				if (RenderToDeferred == false)
+				{
+					Render();
+				}
+				else if (RenderToDeferred == true)
+				{
+					RenderDeferred();
+				}
 			}
 		}
 	}
@@ -412,7 +434,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView[0]);
+	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
@@ -448,7 +470,38 @@ HRESULT InitDevice()
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
+
 	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pRTTRrenderTargetTexture);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[0]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[1]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[2]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[3]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[4]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[5]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetLightingTextures);
+	if (FAILED(hr))
+		return hr;
 
 	renderTargetViewDesc.Format = textureDesc.Format;
 	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
@@ -456,6 +509,36 @@ HRESULT InitDevice()
 
 	// Create the render target view.
 	hr = g_pd3dDevice->CreateRenderTargetView(g_pRTTRrenderTargetTexture, &renderTargetViewDesc, &g_pRTTRenderTargetView);
+	if (FAILED(hr))
+		return hr;
+
+	//// Deferred Rendering
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[0], &renderTargetViewDesc, &g_pGbufferRenderTargetView[0]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[1], &renderTargetViewDesc, &g_pGbufferRenderTargetView[1]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[2], &renderTargetViewDesc, &g_pGbufferRenderTargetView[2]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[3], &renderTargetViewDesc, &g_pGbufferRenderTargetView[3]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[4], &renderTargetViewDesc, &g_pGbufferRenderTargetView[4]);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[5], &renderTargetViewDesc, &g_pGbufferRenderTargetView[5]);
+	if (FAILED(hr))
+		return hr;
+
+
+	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetLightingTextures, &renderTargetViewDesc, &g_pGbufferRenderLightingTargetView);
 	if (FAILED(hr))
 		return hr;
 
@@ -470,6 +553,40 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[0], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[0]);
+	g_pGbufferTargetTextures[0]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[1], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[1]);
+	g_pGbufferTargetTextures[1]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[2], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[2]);
+	g_pGbufferTargetTextures[2]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[3], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[3]);
+	g_pGbufferTargetTextures[3]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[4], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[4]);
+	g_pGbufferTargetTextures[4]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[5], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[5]);
+	g_pGbufferTargetTextures[5]->Release();
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetLightingTextures, &shaderResourceViewDesc, &g_pGbufferShaderResourceLightingView);
+	g_pGbufferTargetLightingTextures->Release();
+	if (FAILED(hr))
+		return hr;
 	// QUAD
 
 // Vertices
@@ -526,7 +643,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView, g_pDepthStencilView);
 
 
 	// Setup the viewport
@@ -566,7 +683,7 @@ HRESULT		InitMesh()
 {
 	// Compile the vertex shader
 	ID3DBlob* pVSBlob = nullptr;
-	HRESULT hr = CompileShaderFromFile(filename, "VS", "vs_4_0", &pVSBlob);
+	HRESULT hr = CompileShaderFromFile(L"shader.fx", "VS", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -601,6 +718,41 @@ HRESULT		InitMesh()
 	if (FAILED(hr))
 		return hr;
 
+	// Compile the vertex shader
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader.fx", "VS", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pGbufferVS);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+
+	// Compile the vertex shader
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader_light.fx", "VS", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pGbufferLightingVS);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
 
 	// Compile the vertex shader
 	pVSBlob = nullptr;
@@ -637,7 +789,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = nullptr;
-	hr = CompileShaderFromFile(filename, "PS", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(L"shader.fx", "PS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -647,6 +799,38 @@ HRESULT		InitMesh()
 
 	// Create the pixel shader
 	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pPixelShader);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
+	// Compile the pixel shader
+	pPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader.fx", "PS", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pGbufferPS);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
+	// Compile the pixel shader
+	pPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader_light.fx", "PSMain", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pGbufferLightingPS);
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
@@ -780,7 +964,7 @@ void CleanupDevice()
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
-	if (g_pRenderTargetView) g_pRenderTargetView[0]->Release();
+	if (g_pRenderTargetView) g_pRenderTargetView->Release();
 	if (g_pRTTRenderTargetView) g_pRTTRenderTargetView->Release();
 	if (g_pQuadPS) g_pQuadPS->Release();
 	if (g_pQuadVS) g_pQuadVS->Release();
@@ -1069,6 +1253,17 @@ void IMGUI()
 		{
 			RenderToTexture = true;
 		}
+		if (ImGui::CollapsingHeader("Deferred Rendering"))
+		{
+			if (ImGui::Button("Next State: "))
+			{
+				deferredRenderState += 1;
+			}
+			if (ImGui::Button("Previous State: "))
+			{
+				deferredRenderState -= 1;
+			}
+		}
 	}
 
 	ImGui::End();
@@ -1085,11 +1280,11 @@ void Render()
 		return;
 
 	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
 
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView[0], g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	g_GameObject.update(t, g_pImmediateContext);
 
@@ -1139,7 +1334,7 @@ void RenderToTarget()
 	// First Render
 
 	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView[0], Colors::MidnightBlue);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
 	g_pImmediateContext->ClearRenderTargetView(g_pRTTRenderTargetView, Colors::Green);
 
 	// Clear the depth buffer to 1.0 (max depth)
@@ -1214,7 +1409,7 @@ void RenderToTarget()
 
 	// Second Render
 	// Set Render Target
-	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView[0], g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// Clear the depth buffer 
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1261,4 +1456,114 @@ void RenderToTarget()
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
 	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
+}
+
+void RenderDeferred()
+{
+	float t = CalculateDeltaTime();
+	if (t == 0.0f)
+		return;
+
+	// First Pass Cube
+	
+	// Clear the back buffer
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[2], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Black); 
+    g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
+
+	g_GameObject.update(t, g_pImmediateContext);
+
+	// get the game object world transform
+	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	// store this and the view / projection in a constant buffer for the vertex shader to use
+	ConstantBuffer cb1;
+	cb1.mWorld = XMMatrixTranspose(mGO);
+	cb1.mView = XMMatrixTranspose(view);
+	cb1.mProjection = XMMatrixTranspose(projection);
+	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+	//Vertex Shader
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	//Pixel shader
+	g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
+	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	g_pImmediateContext->PSSetSamplers(1, 2, g_GameObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
+
+	g_GameObject.draw(g_pImmediateContext);
+
+	// Second Pass Lighting
+
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderLightingTargetView, Colors::Blue);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
+
+	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
+
+	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
+
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
+
+	// Third Pass Quad
+
+	// Set Render Target
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	// Set VB, IB and layout for Quad
+	stride = sizeof(SimpleVertexQuad);
+	offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
+
+	//Vertex Shader Quad
+	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+
+	// Pixel shader Quad
+	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
+
+	// Pixel Sampler 
+	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
+
+
+	// Pixel Shader Resource
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[deferredRenderState]);
+
+	// Draw Quad
+	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+
+	IMGUI();
+
+	// Present our back buffer to our front buffer
+	g_pSwapChain->Present(0, 0);
+
+	// Set Shader Resource to Null / Clear
+	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
+	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
+	g_pImmediateContext->PSSetShaderResources(1, 1, shaderClear);
+	g_pImmediateContext->PSSetShaderResources(2, 1, shaderClear);
+	g_pImmediateContext->PSSetShaderResources(3, 1, shaderClear);
 }
