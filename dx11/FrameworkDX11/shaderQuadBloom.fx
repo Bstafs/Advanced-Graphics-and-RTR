@@ -101,7 +101,7 @@ float3 Bloom(float2 texCoords)
     // Tone Mapping
     float3 vColour = float3(1.0, 1.0, 1.0) - exp(-sceneColour * brightness);
     
-    // Gamma Correction0
+    // Gamma Correction
     vColour = pow(vColour, float3(1.0 / gamma, 1.0 / gamma, 1.0 / gamma));
      
     return vColour;

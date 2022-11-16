@@ -146,7 +146,7 @@ LPCSTR quadString2 = "QuadVS";
 
 bool RenderToTexture = false;
 bool quadTexture = false;
-bool RenderToDeferred = true;
+bool RenderToDeferred = false;
 
 int deferredRenderState = 0;
 
@@ -182,14 +182,8 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 			}
 			else if (RenderToTexture == false)
 			{
-				if (RenderToDeferred == false)
-				{
-					Render();
-				}
-				else if (RenderToDeferred == true)
-				{
-					RenderDeferred();
-				}
+				 //Render();
+				RenderDeferred();
 			}
 		}
 	}
@@ -1303,6 +1297,10 @@ void Render()
 
 	// Render the cube
 	//Vertex Shader
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
@@ -1379,6 +1377,10 @@ void RenderToTarget()
 	g_pImmediateContext->UpdateSubresource(g_pMotionBlurBuffer, 0, nullptr, &cbv, 0, 0);
 
 	// Vertex Shader Layout
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 	// Vertex Shader
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
@@ -1417,8 +1419,8 @@ void RenderToTarget()
 	// Post Process Buffer
 
 	// Set VB, IB and layout for Quad
-	UINT stride = sizeof(SimpleVertexQuad);
-	UINT offset = 0;
+	 stride = sizeof(SimpleVertexQuad);
+	 offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
@@ -1467,12 +1469,12 @@ void RenderDeferred()
 	// First Pass Cube
 	
 	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Black); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Black); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[2], Colors::Black); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Black); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Black); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Black); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Green); 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Green);
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[2], Colors::Green);
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Green);
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Green);
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Green);
     g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
@@ -1515,16 +1517,11 @@ void RenderDeferred()
 
 	// Second Pass Lighting
 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderLightingTargetView, Colors::Blue);
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
-
 	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
-
 	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
-
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
-
 	// Third Pass Quad
 
 	// Set Render Target
@@ -1544,16 +1541,12 @@ void RenderDeferred()
 	// Pixel shader Quad
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
-	// Pixel Sampler 
 	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
-
 
 	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[deferredRenderState]);
-
 	// Draw Quad
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
-
 
 	IMGUI();
 

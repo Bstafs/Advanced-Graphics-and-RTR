@@ -227,7 +227,15 @@ LightingResult ComputeLighting(float3 eyeVectorTS, float3 lightVectorTS, float3 
 PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
-    output.Pos = input.Pos;
+    input.Pos.w - 1.0f;
+    output.Pos = mul(input.Pos, World);
+    float4 worldPos = output.Pos;
+    output.worldPos = output.Pos;
+    output.Pos = mul(output.Pos, View);
+    output.Pos = mul(output.Pos, Projection);
+    
+    output.Tex = input.Tex;
+    
     return output;
 }
 //--------------------------------------------------------------------------------------
@@ -235,23 +243,21 @@ PS_INPUT VS(VS_INPUT input)
 //--------------------------------------------------------------------------------------
 float4 PSMain(in float4 screenPos : SV_Position) : SV_Target0
 {
-    float4 normal;
-    float4 position;
-    float4 diffuse;
-    float4 specular;
-    float specularPower;
+    int3 sampleIndices = int3(screenPos.xy, 0);
     
-    GetGBufferAttributes(screenPos.xy, normal, position, diffuse, specular, specularPower);
+    float3 diffuse = txDiffuse.Load(sampleIndices).xyz;
+    float3 normal = txNormal.Load(sampleIndices).xyz;
+    float3 position = txPosition.Load(sampleIndices).xyz;
+    
+    //GetGBufferAttributes(screenPos.xy, normals,position ,diffuse, specular, sPower);
 
-    LightingResult lit = ComputeLighting(normal, position, specularPower);
+    LightingResult lit = ComputeLighting(diffuse, position, normal);
     
     float4 emissive = Material.Emissive;
     float4 ambient = Material.Ambient * GlobalAmbient;
     diffuse = Material.Diffuse * lit.Diffuse;
-    specular = Material.Specular * lit.Specular;
     
-    float4 finalColor = (emissive + ambient + diffuse + specular);
+    float4 finalColor = (emissive + ambient + float4(diffuse, 1.0));
     
     return finalColor;
-
 }
