@@ -1157,7 +1157,6 @@ void SetPPShader(wstring fn)
 
 void IMGUI()
 {
-	SetupLightForRender();
 	// IMGUI
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -1500,7 +1499,7 @@ void RenderDeferred()
 
 	g_GameObject.update(t, g_pImmediateContext);
 
-	//SetupLightForRender();
+	SetupLightForRender();
 
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -1538,56 +1537,39 @@ void RenderDeferred()
 
 	g_GameObject.draw(g_pImmediateContext);
 
-	// Lighting
+	// Lighting Pass
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView,D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
+
+	float blend[4] = { 1,1,1, 1 };
+	g_pImmediateContext->OMSetBlendState(blendState, blend, 0xFFFFFFFF);
+
 	stride = sizeof(SimpleVertexQuad);
 	offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView,D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
-
 	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
 	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
-
-	g_pImmediateContext->PSSetShaderResources(0 , 1, &g_pGbufferShaderResourceLightingView);
-
+	g_pImmediateContext->PSSetShaderResources(0, 6, &g_pGbufferShaderResourceView[0]);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
 	// Quad Pass
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
-	//float blend[4] = { 1,1,1, 1 };
-	//g_pImmediateContext->OMSetBlendState(blendState, blend, 0xFFFFFFFF);
-
-	stride = sizeof(SimpleVertexQuad);
-	offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
-
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[1]);
 
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
-	// Third Pass Quad
-	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
-
-	//g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
-	//g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
-	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
-
-	//g_pImmediateContext->DrawIndexed(6, 0, 0);
-
-	//g_pImmediateContext->OMSetBlendState(NULL, blend, 0xFFFFFFFF);
 
 	IMGUI();
 
+	g_pImmediateContext->OMSetBlendState(NULL, blend, 0xFFFFFFFF);
+	g_pImmediateContext->OMSetDepthStencilState(NULL, 0);
 	// Present our back buffer to our front buffer
 	g_pSwapChain->Present(0, 0);
 

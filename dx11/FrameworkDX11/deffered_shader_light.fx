@@ -47,7 +47,7 @@ struct Light
 	//----------------------------------- (16 byte boundary)
 }; // Total:                           // 80 bytes (5 * 16)
 
-cbuffer LightProperties : register(b0)
+cbuffer LightProperties : register(b2)
 {
     float4 EyePosition; // 16 bytes
 	//----------------------------------- (16 byte boundary)
@@ -60,26 +60,26 @@ cbuffer LightProperties : register(b0)
 struct VS_INPUT
 {
     float4 Pos : POSITION;
-
+    float2 Tex : TEXCOORD0;
 };
 
 struct PS_INPUT
 {
     float4 Pos : SV_POSITION;
+    float2 Tex : TEXCOORD0;
 };
 
-void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 position, out float3 diffuse, out float3 specular,out float3 emissive, out float3 ambient,out float specularPower)
+void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 diffuse, out float3 specular, out float3 position,out float3 ambient, out float3 emissive,out float specularPower)
 {
     int3 sampleIndices = int3(screenPos.xy, 0);
     normal = txNormal.Load(sampleIndices).xyz;
-    position = txPosition.Load(sampleIndices).xyz;
     diffuse = txDiffuse.Load(sampleIndices).xyz;
-    emissive = txEmissive.Load(sampleIndices).xyz;
-    ambient = txAmbient.Load(sampleIndices).xyz;
     float4 spec = txSpecular.Load(sampleIndices);
-    
     specular = spec.xyz;
     specularPower = spec.w;
+    position = txPosition.Load(sampleIndices).xyz;
+    ambient = txAmbient.Load(sampleIndices).xyz;
+    emissive = txEmissive.Load(sampleIndices).xyz;
    
 }
 
@@ -104,9 +104,6 @@ float DoAttenuation(Light light, float d)
 {
     return 1.0f / (light.ConstantAttenuation + light.LinearAttenuation * d + light.QuadraticAttenuation * d * d);
 }
-
-
-
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -114,6 +111,7 @@ PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
     output.Pos = input.Pos;
+    output.Tex = input.Tex;
     return output;
 }
 //--------------------------------------------------------------------------------------
@@ -129,25 +127,34 @@ float4 PS(PS_INPUT input) : SV_Target
     float3 emissive;
     float specularPower;
     
-    GetGBufferAttributes(input.Pos.xy, normal, position, diffuse, specular, emissive, ambient, specularPower);
+    GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower);
     
-    float3 vertexToEye = EyePosition.xyz - position.xyz;
-    float3 vertexToLight = Lights[0].Position - position.xyz;
+    float3 vertexToEye = EyePosition - position;
+    float3 vertexToLight = Lights[0].Position - position;
     
-    float distance = length(vertexToLight);
+    float3 LightDirectionToVertex = -vertexToLight;
+    float distance = length(LightDirectionToVertex);
+    LightDirectionToVertex = LightDirectionToVertex / distance;
+    
+    distance = length(vertexToLight);
     vertexToLight = vertexToLight / distance;
     
+    // Attenuation
     float attenuation = DoAttenuation(Lights[0], distance);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, -vertexToLight, normal, specularPower);
     
-    float lightAmount = saturate(dot(normal, vertexToLight));
-    float3 color = lightAmount * Lights[0].Color * attenuation;
+    // Specular
+    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower) * attenuation;
+    
+    // Diffuse
+    float3 L = -Lights[0].Direction;
+    float lightAmount = saturate(dot(normal, L));
+    float3 color = Lights[0].Color * lightAmount;
    
-    float3 finalDiffuse = color * diffuse;
-    float3 finalSpecular = spec * diffuse * attenuation;
+    float3 finalDiffuse = color * diffuse * attenuation;
+    float3 finalSpecular = spec * diffuse;
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
-    float4 finalColor = float4(finalDiffuse, 1.0);
+    float4 finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
     
     return finalColor;
 }
