@@ -1299,6 +1299,8 @@ void Render()
 
 	g_GameObject.update(t, g_pImmediateContext);
 
+	SetupLightForRender();
+
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
@@ -1360,6 +1362,8 @@ void RenderToTarget()
 
 	// Update GameObject
 	g_GameObject.update(t, g_pImmediateContext);
+
+	SetupLightForRender();
 
 	// GameObjects Position
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
