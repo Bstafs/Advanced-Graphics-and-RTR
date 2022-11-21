@@ -17,14 +17,7 @@ cbuffer BlurBuffer : register(b4)
     float3 padding;
 }
 
-SamplerState samLinear : register(s0)
-{
-	Filter = ANISOTROPIC;
-	MaxAnisotropy = 4;
-
-	AddressU = WRAP;
-	AddressV = WRAP;
-};
+SamplerState samLinear : register(s0);
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -61,6 +54,5 @@ float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
     float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
     
-	
     return vColour;
 }

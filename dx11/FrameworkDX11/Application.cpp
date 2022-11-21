@@ -103,6 +103,9 @@ D3D11_TEXTURE2D_DESC textureDesc;
 D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
 
+// Blend States
+ID3D11BlendState* blendState = nullptr;
+
 // Structs
 struct SCREEN_VERTEX
 {
@@ -639,6 +642,21 @@ HRESULT InitDevice()
 
 	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView, g_pDepthStencilView);
 
+	//Blend state setup
+	D3D11_BLEND_DESC blendDesc;
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = false;
+	blendDesc.RenderTarget[0].BlendEnable = true;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	g_pd3dDevice->CreateBlendState(&blendDesc, &blendState);
 
 	// Setup the viewport
 	D3D11_VIEWPORT vp;
@@ -815,7 +833,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	pPSBlob = nullptr;
-	hr = CompileShaderFromFile(L"deffered_shader_light.fx", "PSMain", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(L"deffered_shader_light.fx", "PS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -1468,17 +1486,21 @@ void RenderDeferred()
 
 	// First Pass Cube
 	
-	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Green); 
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Green);
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[2], Colors::Green);
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Green);
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Green);
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Green);
+	// Clear the back buffer 
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Black); // Normal
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Black); // Diffuse
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[2], Colors::Black); // Specular
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Black); // Position
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Black); // Ambient
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Black); // Emissive
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderLightingTargetView, Colors::Black);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
     g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
 	g_GameObject.update(t, g_pImmediateContext);
+
+	//SetupLightForRender();
 
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -1510,43 +1532,59 @@ void RenderDeferred()
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	g_pImmediateContext->PSSetSamplers(1, 2, g_GameObject.getTextureSamplerState());
+
+	g_pImmediateContext->PSSetSamplers(1, 1, g_GameObject.getTextureSamplerState());
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 
 	g_GameObject.draw(g_pImmediateContext);
 
-	// Second Pass Lighting
-
-	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
-	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
-	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
-	// Third Pass Quad
-
-	// Set Render Target
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	// Set VB, IB and layout for Quad
+	// Lighting
 	stride = sizeof(SimpleVertexQuad);
 	offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	//Vertex Shader Quad
-	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView,D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
 
-	// Pixel shader Quad
-	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
+	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
+	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
 
-	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetShaderResources(0 , 1, &g_pGbufferShaderResourceLightingView);
 
-	// Pixel Shader Resource
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[deferredRenderState]);
-	// Draw Quad
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
+	// Quad Pass
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	//float blend[4] = { 1,1,1, 1 };
+	//g_pImmediateContext->OMSetBlendState(blendState, blend, 0xFFFFFFFF);
+
+	stride = sizeof(SimpleVertexQuad);
+	offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
+
+	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[1]);
+
+	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+	// Third Pass Quad
+	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+
+	//g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+	//g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
+	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
+
+	//g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+	//g_pImmediateContext->OMSetBlendState(NULL, blend, 0xFFFFFFFF);
 
 	IMGUI();
 
@@ -1559,4 +1597,6 @@ void RenderDeferred()
 	g_pImmediateContext->PSSetShaderResources(1, 1, shaderClear);
 	g_pImmediateContext->PSSetShaderResources(2, 1, shaderClear);
 	g_pImmediateContext->PSSetShaderResources(3, 1, shaderClear);
+	g_pImmediateContext->PSSetShaderResources(4, 1, shaderClear);
+	g_pImmediateContext->PSSetShaderResources(5, 1, shaderClear);
 }
