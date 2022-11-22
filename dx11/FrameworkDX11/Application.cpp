@@ -947,7 +947,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
 
-	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
 	LightDirection = XMVector3Normalize(LightDirection);
 	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
