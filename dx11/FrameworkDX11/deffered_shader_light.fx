@@ -132,7 +132,7 @@ float4 PS(PS_INPUT input) : SV_Target
     float3 vertexToEye = EyePosition - position;
     float3 vertexToLight = Lights[0].Position - position;
     
-    float3 LightDirectionToVertex = -vertexToLight;
+    float3 LightDirectionToVertex = vertexToLight;
     float distance = length(LightDirectionToVertex);
     LightDirectionToVertex = LightDirectionToVertex / distance;
     
@@ -143,7 +143,7 @@ float4 PS(PS_INPUT input) : SV_Target
     float attenuation = DoAttenuation(Lights[0], distance);
     
     // Specular
-    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower) * attenuation;
+    float4 spec = DoSpecular(Lights[0], vertexToEye, -LightDirectionToVertex, normal, specularPower) * attenuation;
     
     // Diffuse
     float3 L = -Lights[0].Direction;
