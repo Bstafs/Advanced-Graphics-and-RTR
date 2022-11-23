@@ -14,6 +14,10 @@ struct ConstantBuffer
 	XMMATRIX mView;
 	XMMATRIX mProjection;
 	XMFLOAT4 vOutputColor;
+
+	unsigned int defID;
+	unsigned int renID;
+	XMFLOAT2 padding01;
 };
 
 struct BlurBufferHorizontal

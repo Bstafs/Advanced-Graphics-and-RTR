@@ -15,6 +15,10 @@ cbuffer ConstantBuffer : register(b0)
     matrix View;
     matrix Projection;
     float4 vOutputColor;
+    
+    unsigned int defID;
+    unsigned int renID;
+    float2 padding01;
 }
 
 Texture2D txDiffuse : register(t0);
@@ -406,11 +410,44 @@ float4 PS(PS_INPUT IN) : SV_TARGET
 {
     float parallaxHeight;
     
-   //  float2 texCoords = IN.Tex; // Normal Mapping
-   //  float2 texCoords = ParallaxMapping(IN.Tex, viewDir); // Simple Parallax Mapping
-   // float2 texCoords = ParallaxSteepMapping(IN.Tex, viewDir);
-   // float2 texCoords = ParallaxReliefMapping(IN.Tex, viewDir);
-    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+    int id = renID;
+    
+    float2 texCoords = IN.Tex;
+    
+    switch (id)
+    {
+        case 0:
+        {
+                texCoords = IN.Tex; // Normal Mapping
+                break;
+            }
+        case 1:
+        {
+                texCoords = ParallaxMapping(IN.Tex, IN.eyeVectorTS); // Simple Parallax Mapping
+                break;
+            }
+        case 2:
+        {
+                texCoords = ParallaxSteepMapping(IN.Tex, IN.eyeVectorTS);
+                break;
+            }
+        case 3:
+        {
+                texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
+                break;
+            }
+        case 4:
+        {
+                texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+                break;
+            }
+        case 5:
+        {
+                texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+                break;
+            }
+        
+    }
     
     if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
@@ -437,8 +474,17 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     }
 
     float shadowFactor = ParallaxShadowsRedon(texCoords, IN.lightVectorTS);
-    float4 finalColor = (emissive + ambient + (diffuse + specular) * pow(shadowFactor, 4)) * texColor; // With Shadow
-    //float4 finalColor = (emissive + ambient + diffuse + specular) * texColor; // No Shadow
+    
+    float4 finalColor = (emissive + ambient + (diffuse + specular)) * texColor;
+    
+    switch (id)
+    {
+        case 5:
+        { 
+                 finalColor = (emissive + ambient + (diffuse + specular) * pow(shadowFactor, 4)) * texColor; // With Shadow
+                break;
+            }
+    }
 
     return finalColor;
 }

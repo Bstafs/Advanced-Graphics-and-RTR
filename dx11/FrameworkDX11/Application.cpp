@@ -33,6 +33,7 @@ void DetectInput(double deltaTime);
 void IMGUI();
 void SetShader(wstring filename);
 void SetPPShader(wstring fn);
+void UpdateFunctions();
 void RenderDeferred();
 // Globals
 
@@ -147,11 +148,30 @@ const wchar_t* ppFileName = ppName.c_str();
 LPCSTR quadString1 = "QuadVS";
 LPCSTR quadString2 = "QuadVS";
 
-bool RenderToTexture = false;
 bool quadTexture = false;
-bool RenderToDeferred = false;
 
 int deferredRenderState = 0;
+
+const char* renderLabelNormal = ("Shader: Normal");
+const char* renderLabelSimple = ("Shader: Simple");
+const char* renderLabelSteep = ("Shader: Steep");
+const char* renderLabelRelief = ("Shader: Relief");
+const char* renderLabelOcclusion = ("Shader: Occlusion");
+const char* renderLOcclusionShadow = ("Shader: Occlusion Shadow");
+
+const char* deferredLabelNormal = ("Shader: Normal");
+const char* deferredLabelSimple = ("Shader: Simple");
+const char* deferredLabelSteep = ("Shader: Steep");
+const char* deferredLabelRelief = ("Shader: Relief");
+const char* deferredLabelOcclusion = ("Shader: Occlusion");
+
+unsigned int deferredID = 0;
+const char* deferredLabelNames;
+
+unsigned int renderID = 0;
+const char* renderLabelNames;
+
+unsigned int updateID = 0;
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -178,22 +198,38 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
-			UpdateCamera();
-			if (RenderToTexture == true)
-			{
-				RenderToTarget();
-			}
-			else if (RenderToTexture == false)
-			{
-				 //Render();
-				RenderDeferred();
-			}
+			UpdateFunctions();
 		}
 	}
 
 	CleanupDevice();
 
 	return (int)msg.wParam;
+}
+
+void UpdateFunctions()
+{
+	UpdateCamera();
+
+	switch (updateID)
+	{
+	case 0:
+	{
+		Render();
+		break;
+	}
+	case 1:
+	{
+		RenderToTarget();
+		break;
+	}
+	case 2:
+		
+	{
+		RenderDeferred();
+		break;
+	}
+	}
 }
 
 HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow)
@@ -695,7 +731,7 @@ HRESULT		InitMesh()
 {
 	// Compile the vertex shader
 	ID3DBlob* pVSBlob = nullptr;
-	HRESULT hr = CompileShaderFromFile(L"shader.fx", "VS", "vs_4_0", &pVSBlob);
+	HRESULT hr = CompileShaderFromFile(filename, "VS", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -801,7 +837,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shader.fx", "PS", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(filename, "PS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -1200,47 +1236,110 @@ void IMGUI()
 		ImGui::DragFloat("Object Rotation Y", &g_GameObject.m_rotation.y, 0.025f);
 		ImGui::DragFloat("Object Rotation Z", &g_GameObject.m_rotation.z, 0.025f);
 	}
-	if (ImGui::CollapsingHeader("Shaders"))
+	if (ImGui::CollapsingHeader("Rendering"))
 	{
-		if (ImGui::Button("Original Shader"))
+		if (ImGui::Button("Render Original"))
 		{
-			SetShader(L"shader.fx");
+			updateID = 0;
 		}
-		if (ImGui::Button("Basic Shader"))
+
+		switch (renderID)
 		{
-			SetShader(L"shader_basic.fx");
+		case 0:
+		{
+			renderLabelNames = renderLabelNormal;
+			break;
 		}
-		if (ImGui::Button("Normal Shader"))
+		case 1:
 		{
-			SetShader(L"shader_normal.fx");
+			renderLabelNames = renderLabelSimple;
+			break;
 		}
-		if (ImGui::Button("Simple Parallax Shader"))
+		case 2:
 		{
-			SetShader(L"shader_simple.fx");
+			renderLabelNames = renderLabelSteep;
+			break;
 		}
-		if (ImGui::Button("Steep Parallax Shader"))
+		case 3:
 		{
-			SetShader(L"shader_steep.fx");
+			renderLabelNames = renderLabelRelief;
+			break;
 		}
-		if (ImGui::Button("Relief Parallax Shader"))
+		case 4:
 		{
-			SetShader(L"shader_relief.fx");
+			renderLabelNames = renderLabelOcclusion;
+			break;
 		}
-		if (ImGui::Button("Occlusion Parallax Shader"))
+		case 5:
 		{
-			SetShader(L"shader_occlusion.fx");
+			renderLabelNames = renderLOcclusionShadow;
+			break;
 		}
-		if (ImGui::Button("Self-Shadow Occlusion Parallax Shader"))
+		}
+
+		if (ImGui::Button(renderLabelNames))
 		{
-			SetShader(L"shader_shadows.fx");
+			renderID += 1;
+		}
+
+		if (renderID > 5)
+		{
+			renderID = 0;
 		}
 	}
+	if (ImGui::CollapsingHeader("Deferred Rendering"))
+	{
+		if (ImGui::Button("Render Deferred"))
+		{
+			updateID = 2;
+		}
+
+		switch (deferredID)
+		{
+		case 0:
+		{
+			deferredLabelNames = deferredLabelNormal;
+			break;
+		}
+		case 1:
+		{
+			deferredLabelNames = deferredLabelSimple;
+			break;
+		}
+		case 2:
+		{
+			deferredLabelNames = deferredLabelSteep;
+			break;
+		}
+		case 3:
+		{
+			deferredLabelNames = deferredLabelRelief;
+			break;
+		}
+		case 4:
+		{
+			deferredLabelNames = deferredLabelOcclusion;
+			break;
+		}
+		}
+
+		if (ImGui::Button(deferredLabelNames))
+		{
+			deferredID += 1;
+		}
+
+		if (deferredID > 4)
+		{
+			deferredID = 0;
+		}
+	}
+
 	if (ImGui::CollapsingHeader("Post-Processing"))
 	{
 		ImGui::Text("Reset Render To Texture");
 		if (ImGui::Button("Reset Render"))
 		{
-			RenderToTexture = false;
+			updateID = 0;
 		}
 		ImGui::Text("Post-Processing Effects");
 		if (ImGui::Button("Original"))
@@ -1262,18 +1361,7 @@ void IMGUI()
 		ImGui::Text("Render To Texture");
 		if (ImGui::Button("Render To Texture"))
 		{
-			RenderToTexture = true;
-		}
-		if (ImGui::CollapsingHeader("Deferred Rendering"))
-		{
-			if (ImGui::Button("Next State: "))
-			{
-				deferredRenderState += 1;
-			}
-			if (ImGui::Button("Previous State: "))
-			{
-				deferredRenderState -= 1;
-			}
+			updateID = 1;
 		}
 	}
 
@@ -1312,6 +1400,8 @@ void Render()
 	cb1.mView = XMMatrixTranspose(view);
 	cb1.mProjection = XMMatrixTranspose(projection);
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	cb1.renID = renderID;
+	//cb1.defID = deferredID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 	// Render the cube
@@ -1516,6 +1606,8 @@ void RenderDeferred()
 	cb1.mView = XMMatrixTranspose(view);
 	cb1.mProjection = XMMatrixTranspose(projection);
 	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	cb1.defID = deferredID;
+	//cb1.renID = renderID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
 	//Vertex Shader
