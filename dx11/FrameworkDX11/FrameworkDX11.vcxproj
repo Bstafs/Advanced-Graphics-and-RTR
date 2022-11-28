@@ -364,6 +364,7 @@
     <ClInclude Include="ImGui\imstb_rectpack.h" />
     <ClInclude Include="ImGui\imstb_textedit.h" />
     <ClInclude Include="ImGui\imstb_truetype.h" />
+    <ClInclude Include="Plane.h" />
     <CLInclude Include="resource.h" />
     <ClInclude Include="structures.h" />
     <ResourceCompile Include="Tutorial01.rc" />
@@ -381,6 +382,7 @@
     <ClCompile Include="ImGui\imgui_impl_win32.cpp" />
     <ClCompile Include="ImGui\imgui_tables.cpp" />
     <ClCompile Include="ImGui\imgui_widgets.cpp" />
+    <ClCompile Include="Plane.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\color.dds" />

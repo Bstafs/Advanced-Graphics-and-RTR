@@ -81,6 +81,9 @@
     <ClCompile Include="DrawableGameObject.cpp">
       <Filter>.cpp</Filter>
     </ClCompile>
+    <ClCompile Include="Plane.cpp">
+      <Filter>.cpp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -126,6 +129,9 @@
       <Filter>.h</Filter>
     </ClInclude>
     <ClInclude Include="DrawableGameObject.h">
+      <Filter>.h</Filter>
+    </ClInclude>
+    <ClInclude Include="Plane.h">
       <Filter>.h</Filter>
     </ClInclude>
   </ItemGroup>

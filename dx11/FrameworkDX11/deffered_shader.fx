@@ -55,6 +55,7 @@ struct _Material
     bool UseTexture; // 4 bytes
     float2 Padding; // 8 bytes
 	//----------------------------------- (16 byte boundary)
+    float4 Depth;
 }; // Total:               // 80 bytes ( 5 * 16 )
 
 cbuffer MaterialProperties : register(b1)
@@ -123,6 +124,7 @@ struct PS_OUTPUT
     float4 Position : SV_Target3;
     float4 Ambient : SV_Target4;
     float4 Emissive : SV_Target5;
+    float4 Depth : SV_Target6;
 };
 
 float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
@@ -281,6 +283,7 @@ PS_INPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
     output.Tex = input.Tex;
+    output.Norm = input.Norm;
     float3 vertexToEye = worldPos.xyz - EyePosition.xyz;
     //float3 vertexToLight = worldPos.xyz - Lights[0].Position.xyz;
 
@@ -362,6 +365,7 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     output.Specular = Material.Specular;
     output.Normal = bumpMap;
     output.Position = IN.worldPos;
+    output.Depth = -IN.worldPos.z;
 
     if (Material.UseTexture)
     {

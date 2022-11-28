@@ -14,6 +14,7 @@
 #include <iostream>
 
 #include "DrawableGameObject.h"
+#include "Plane.h"
 #include "structures.h"
 
 #include <vector>
