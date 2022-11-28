@@ -61,14 +61,12 @@ cbuffer LightProperties : register(b2)
 struct VS_INPUT
 {
     float4 Pos : POSITION;
-    float3 Norm : NORMAL;
     float2 Tex : TEXCOORD0;
 };
 
 struct PS_INPUT
 {
     float4 Pos : SV_POSITION;
-    float3 Norm : NORMAL;
     float2 Tex : TEXCOORD0;
 };
 
@@ -141,10 +139,9 @@ float DoSpotCone(Light light, float3 vertexToLight)
     
     float maxCos = (minCos + 1.0f) / 2.0f;
     
-    float cosAngle = dot(light.Direction.xyz, -vertexToLight);
+    float cosAngle = dot(-light.Direction.xyz, vertexToLight);
     
     return smoothstep(minCos, maxCos, cosAngle);
-
 }
 
 float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive)
@@ -152,7 +149,7 @@ float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in flo
     float3 lightDirection = Lights[0].Direction.xyz;
     
    // Specular
-    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, specularPower) * attenuation;
+    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, specularPower);
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, lightDirection, diffuse);
     float3 finalSpecular = spec * diffuse;
@@ -195,7 +192,6 @@ PS_INPUT VS(VS_INPUT input)
     PS_INPUT output;
     output.Pos = input.Pos;
     output.Tex = input.Tex;
-    output.Norm = input.Norm;
     return output;
 }
 //--------------------------------------------------------------------------------------

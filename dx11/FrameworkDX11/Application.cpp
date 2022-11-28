@@ -61,6 +61,7 @@ ID3D11RenderTargetView* g_pGbufferRenderLightingTargetView = nullptr;
 
 // Textures
 ID3D11Texture2D* g_pDepthStencil = nullptr;
+ID3D11Texture2D* g_pDepthStencilShadow = nullptr;
 ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
 ID3D11Texture2D* g_pGbufferTargetTextures[7];
 ID3D11Texture2D* g_pGbufferTargetLightingTextures = nullptr;
@@ -70,9 +71,11 @@ ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pGbufferShaderResourceView[7];
 ID3D11ShaderResourceView* g_pGbufferShaderResourceLightingView = nullptr;
+ID3D11ShaderResourceView* g_pShadowShaderResourceView = nullptr;
 
 // Stencils
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
+ID3D11DepthStencilView* g_pDepthStencilShadowView = nullptr;
 
 // Shaders
 ID3D11VertexShader* g_pVertexShader = nullptr;
@@ -86,6 +89,10 @@ ID3D11PixelShader* g_pGbufferPS = nullptr;
 
 ID3D11VertexShader* g_pGbufferLightingVS = nullptr;
 ID3D11PixelShader* g_pGbufferLightingPS = nullptr;
+
+ID3D11VertexShader* g_pShadowVS = nullptr;
+ID3D11PixelShader* g_pShadowPS = nullptr;
+
 // Input layouts
 ID3D11InputLayout* g_pVertexLayout = nullptr;
 ID3D11InputLayout* g_pQuadLayout = nullptr;
@@ -481,14 +488,19 @@ HRESULT InitDevice()
 	descDepth.Height = height;
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
-	descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	descDepth.Format = DXGI_FORMAT_R24G8_TYPELESS;
 	descDepth.SampleDesc.Count = sampleCount;
 	descDepth.SampleDesc.Quality = maxQuality;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
-	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	descDepth.CPUAccessFlags = 0;
 	descDepth.MiscFlags = 0;
 	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencil);
+	if (FAILED(hr))
+		return hr;
+
+
+	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencilShadow);
 	if (FAILED(hr))
 		return hr;
 
@@ -685,10 +697,25 @@ HRESULT InitDevice()
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
-	descDSV.Format = descDepth.Format;
+	descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	descDSV.Texture2D.MipSlice = 0;
 	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilShadow, &descDSV, &g_pDepthStencilShadowView);
+	if (FAILED(hr))
+		return hr;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC sr_desc;
+	sr_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	sr_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	sr_desc.Texture2D.MostDetailedMip = 0;
+	sr_desc.Texture2D.MipLevels = -1;
+	
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow, &sr_desc, &g_pShadowShaderResourceView);
+	g_pDepthStencilShadow->Release();
 	if (FAILED(hr))
 		return hr;
 
@@ -804,6 +831,24 @@ HRESULT		InitMesh()
 		return hr;
 	}
 
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader_shadow.fx", "VS", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pShadowVS);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+
+
 	// Compile the vertex shader
 	pVSBlob = nullptr;
 	hr = CompileShaderFromFile(L"deffered_shader_light.fx", "VS", "vs_4_0", &pVSBlob);
@@ -883,6 +928,21 @@ HRESULT		InitMesh()
 
 	// Create the pixel shader
 	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pGbufferPS);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
+	pPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"deffered_shader_shadow.fx", "PS", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pShadowPS);
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
@@ -1006,7 +1066,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
 
-	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f);
+	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 	LightDirection = XMVector3Normalize(LightDirection);
 	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
@@ -1035,6 +1095,7 @@ void CleanupDevice()
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
+	if (g_pDepthStencilShadow) g_pDepthStencilShadow->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
 	if (g_pRenderTargetView) g_pRenderTargetView->Release();
 	if (g_pRTTRenderTargetView) g_pRTTRenderTargetView->Release();
@@ -1146,9 +1207,9 @@ void SetupLightForRenderSpot()
 	g_Lighting.LightType = 2;
 	g_Lighting.Color = XMFLOAT4(Colors::White);
 	g_Lighting.SpotAngle = XMConvertToRadians(45.0f);
-	g_Lighting.ConstantAttenuation = 1.0f;
-	g_Lighting.LinearAttenuation = 1;
-	g_Lighting.QuadraticAttenuation = 1;
+	g_Lighting.ConstantAttenuation = 0.1f;
+	g_Lighting.LinearAttenuation = 0.1f;
+	g_Lighting.QuadraticAttenuation = 0.1f;
 
 	XMFLOAT3 temp = g_pCurrentCamera->GetPosition();
 
@@ -1656,7 +1717,6 @@ void RenderDeferred()
 	if (t == 0.0f)
 		return;
 
-	// First Pass Cube
 	
 	// Clear the back buffer 
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Black); // Normal
@@ -1665,14 +1725,38 @@ void RenderDeferred()
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[3], Colors::Black); // Position
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[4], Colors::Black); // Ambient
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[5], Colors::Black); // Emissive
-	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[6], Colors::Black); // Depth
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderLightingTargetView, Colors::Black);
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
     g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(7, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
 	g_GameObject.update(t, g_pImmediateContext);
 	g_PlaneObject.update(t, g_pImmediateContext);
+
+	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+
+	//XMFLOAT4X4 lightViewMatrix;
+	//XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
+	//XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f);
+	//XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	//XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
+
+
+	//// get the game object world transform
+	//XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	//XMMATRIX mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	//XMMATRIX view = XMLoadFloat4x4(&lightViewMatrix);
+	//XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	//ConstantBuffer cb;
+	//cb.mWorld = XMMatrixTranspose(mGO1);
+	//cb.mView = XMMatrixTranspose(view);
+	//cb.mProjection = XMMatrixTranspose(projection);
+	//cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	//g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+
+	g_pImmediateContext->OMSetRenderTargets(7, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
 	switch (lightTypeNumber)
 	{
@@ -1693,13 +1777,12 @@ void RenderDeferred()
 	}
 	}
 
-	// get the game object world transform
+	// Plane Render
+
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
 	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
 	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
-
-	// Plane Render
 
 	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGO1);
