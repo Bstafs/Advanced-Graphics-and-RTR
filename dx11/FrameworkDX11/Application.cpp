@@ -1702,7 +1702,6 @@ void RenderDeferred()
 	if (t == 0.0f)
 		return;
 
-	
 	// Clear the back buffer 
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[0], Colors::Black); // Normal
 	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[1], Colors::Black); // Diffuse
@@ -1717,8 +1716,7 @@ void RenderDeferred()
 	g_GameObject.update(t, g_pImmediateContext);
 	g_PlaneObject.update(t, g_pImmediateContext);
 
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView);
 
 	XMFLOAT4X4 lightViewMatrix;
 	XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
@@ -1739,6 +1737,41 @@ void RenderDeferred()
 	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
+	UINT stride = sizeof(SimpleVertexPlane);
+	UINT offset = 0;
+	// Vertex for Plane
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	g_pImmediateContext->VSSetShader(g_pShadowVS, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	// Pixel for Plane
+	g_pImmediateContext->PSSetShader(g_pShadowPS, nullptr, 0);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+
+	g_PlaneObject.draw(g_pImmediateContext);
+
+	// First Pass Cube
+	cb.mWorld = XMMatrixTranspose(mGO);
+	cb.defID = deferredID;
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	//Vertex Shader
+	stride = sizeof(SimpleVertex);
+	offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	g_pImmediateContext->VSSetShader(g_pShadowVS, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+
+	//Pixel shader
+	g_pImmediateContext->PSSetShader(g_pShadowPS, nullptr, 0);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+
+	g_GameObject.draw(g_pImmediateContext);
 
 	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
@@ -1774,12 +1807,12 @@ void RenderDeferred()
 	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-	UINT stride = sizeof(SimpleVertexPlane);
-	UINT offset = 0;
+	 stride = sizeof(SimpleVertexPlane);
+	 offset = 0;
 	// Vertex for Plane
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+	 g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
+	 g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	 g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
@@ -1799,7 +1832,6 @@ void RenderDeferred()
 	cb.mWorld = XMMatrixTranspose(mGO);
 	cb.defID = deferredID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
-
 
 	//Vertex Shader
 	stride = sizeof(SimpleVertex);
