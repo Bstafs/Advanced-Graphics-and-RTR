@@ -56,20 +56,20 @@ IDXGISwapChain1* g_pSwapChain1 = nullptr;
 // Render Targets
 ID3D11RenderTargetView* g_pRenderTargetView;
 ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
-ID3D11RenderTargetView* g_pGbufferRenderTargetView[7];
+ID3D11RenderTargetView* g_pGbufferRenderTargetView[6];
 ID3D11RenderTargetView* g_pGbufferRenderLightingTargetView = nullptr;
 
 // Textures
 ID3D11Texture2D* g_pDepthStencil = nullptr;
 ID3D11Texture2D* g_pDepthStencilShadow = nullptr;
 ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
-ID3D11Texture2D* g_pGbufferTargetTextures[7];
+ID3D11Texture2D* g_pGbufferTargetTextures[6];
 ID3D11Texture2D* g_pGbufferTargetLightingTextures = nullptr;
 
 // Shader Resources
 ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
-ID3D11ShaderResourceView* g_pGbufferShaderResourceView[7];
+ID3D11ShaderResourceView* g_pGbufferShaderResourceView[6];
 ID3D11ShaderResourceView* g_pGbufferShaderResourceLightingView = nullptr;
 ID3D11ShaderResourceView* g_pShadowShaderResourceView = nullptr;
 
@@ -547,11 +547,6 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-
-	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[6]);
-	if (FAILED(hr))
-		return hr;
-
 	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetLightingTextures);
 	if (FAILED(hr))
 		return hr;
@@ -587,10 +582,6 @@ HRESULT InitDevice()
 		return hr;
 
 	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[5], &renderTargetViewDesc, &g_pGbufferRenderTargetView[5]);
-	if (FAILED(hr))
-		return hr;
-
-	hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[6], &renderTargetViewDesc, &g_pGbufferRenderTargetView[6]);
 	if (FAILED(hr))
 		return hr;
 
@@ -636,11 +627,6 @@ HRESULT InitDevice()
 
 	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[5], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[5]);
 	g_pGbufferTargetTextures[5]->Release();
-	if (FAILED(hr))
-		return hr;
-
-	hr = g_pd3dDevice->CreateShaderResourceView(g_pGbufferTargetTextures[6], &shaderResourceViewDesc, &g_pGbufferShaderResourceView[6]);
-	g_pGbufferTargetTextures[6]->Release();
 	if (FAILED(hr))
 		return hr;
 
@@ -1095,7 +1081,6 @@ void CleanupDevice()
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
-	if (g_pDepthStencilShadow) g_pDepthStencilShadow->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
 	if (g_pRenderTargetView) g_pRenderTargetView->Release();
 	if (g_pRTTRenderTargetView) g_pRTTRenderTargetView->Release();
@@ -1732,31 +1717,30 @@ void RenderDeferred()
 	g_GameObject.update(t, g_pImmediateContext);
 	g_PlaneObject.update(t, g_pImmediateContext);
 
-	//g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 
-	//XMFLOAT4X4 lightViewMatrix;
-	//XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
-	//XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f);
-	//XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	//XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
+	XMFLOAT4X4 lightViewMatrix;
+	XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
+	XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f);
+	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
+
+	// get the game object world transform
+	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	XMMATRIX mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	XMMATRIX view = XMLoadFloat4x4(&lightViewMatrix);
+	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	ConstantBuffer cb;
+	cb.mWorld = XMMatrixTranspose(mGO1);
+	cb.mView = XMMatrixTranspose(view);
+	cb.mProjection = XMMatrixTranspose(projection);
+	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 
-	//// get the game object world transform
-	//XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
-	//XMMATRIX mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
-	//XMMATRIX view = XMLoadFloat4x4(&lightViewMatrix);
-	//XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
-
-	//ConstantBuffer cb;
-	//cb.mWorld = XMMatrixTranspose(mGO1);
-	//cb.mView = XMMatrixTranspose(view);
-	//cb.mProjection = XMMatrixTranspose(projection);
-	//cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-	//g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
-
-
-	g_pImmediateContext->OMSetRenderTargets(7, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
 	switch (lightTypeNumber)
 	{
@@ -1779,12 +1763,11 @@ void RenderDeferred()
 
 	// Plane Render
 
-	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
-	XMMATRIX mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
-	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
-	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+	 mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	 mGO1 = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	 view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+	 projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
-	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGO1);
 	cb.mView = XMMatrixTranspose(view);
 	cb.mProjection = XMMatrixTranspose(projection);
@@ -1856,7 +1839,7 @@ void RenderDeferred()
 
 	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
 	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
-	g_pImmediateContext->PSSetShaderResources(0, 7, &g_pGbufferShaderResourceView[0]);
+	g_pImmediateContext->PSSetShaderResources(0, 6, &g_pGbufferShaderResourceView[0]);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	// Quad Pass
@@ -1885,5 +1868,4 @@ void RenderDeferred()
 	g_pImmediateContext->PSSetShaderResources(3, 1, shaderClear);
 	g_pImmediateContext->PSSetShaderResources(4, 1, shaderClear);
 	g_pImmediateContext->PSSetShaderResources(5, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(6, 1, shaderClear);
 }
