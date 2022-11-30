@@ -110,15 +110,7 @@ HRESULT Plane::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pContext)
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// load and setup textures
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\color.dds", nullptr, &m_pTextureResourceView);
-	if (FAILED(hr))
-		return hr;
-
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\normals.dds", nullptr, &m_pNormalResourceView);
-	if (FAILED(hr))
-		return hr;
-
-	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\displacement.dds", nullptr, &m_pParraResourceView);
+	hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\tiles.dds", nullptr, &m_pTextureResourceView);
 	if (FAILED(hr))
 		return hr;
 

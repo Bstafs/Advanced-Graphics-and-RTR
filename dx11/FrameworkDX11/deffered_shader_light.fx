@@ -12,7 +12,6 @@ Texture2D txSpecular : register(t2);
 Texture2D txPosition : register(t3);
 Texture2D txAmbient : register(t4);
 Texture2D txEmissive : register(t5);
-Texture2D txDepth : register(t6);
 
 SamplerState samLinear : register(s0)
 {
@@ -70,7 +69,7 @@ struct PS_INPUT
     float2 Tex : TEXCOORD0;
 };
 
-void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 diffuse, out float3 specular, out float3 position,out float3 ambient, out float3 emissive,out float specularPower, out float depth)
+void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 diffuse, out float3 specular, out float3 position,out float3 ambient, out float3 emissive,out float specularPower)
 {
     int3 sampleIndices = int3(screenPos.xy, 0);
     normal = txNormal.Load(sampleIndices).xyz;
@@ -81,8 +80,6 @@ void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 dif
     position = txPosition.Load(sampleIndices).xyz;
     ambient = txAmbient.Load(sampleIndices).xyz;
     emissive = txEmissive.Load(sampleIndices).xyz;
-   float4 dep = txDepth.Load(sampleIndices);
-    depth = dep.a;
 }
 
 float4 DoSpecular(Light lightObject, float3 vertexToEye, float3 lightDirectionToVertex, float3 Normal, float specPow)
@@ -206,19 +203,20 @@ float4 PS(PS_INPUT input) : SV_Target
     float3 ambient;
     float3 emissive;
     float specularPower;
-    float depth;
     
     float3 vertexToEye;
     float3 vertexToLight;
     float attenuation;
     
-    GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower, depth);
+    GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower);
     
     CreateLightPositions(vertexToEye, vertexToLight, attenuation, position);
     
     float4 finalColor;
    
     int lightNumber = Lights[0].LightType;
+    
+  //  lightNumber = 1;
     
     switch (lightNumber)
     {

@@ -19,6 +19,10 @@ cbuffer ConstantBuffer : register(b0)
     unsigned int defID;
     unsigned int renID;
     float2 padding01;
+    
+    unsigned int useNormals;
+    unsigned int useParallax;
+    float2 padding02;
 }
 
 
@@ -124,7 +128,6 @@ struct PS_OUTPUT
     float4 Position : SV_Target3;
     float4 Ambient : SV_Target4;
     float4 Emissive : SV_Target5;
-    float4 Depth : SV_Target6;
 };
 
 float3 VectorToTangentSpace(float3 VectorV, float3x3 TBN_inv)
@@ -312,34 +315,38 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     float parallaxHeight;
     
     int id = defID;
-    
+    unsigned int useP = useParallax;
     float2 texCoords = IN.Tex;
     
     switch (id)
     {
         case 0:
         {
-                 texCoords = IN.Tex; // Normal Mapping
+                texCoords = IN.Tex; // Normal Mapping
                 break;
             }
-        case 1: 
+        case 1:
         {
-                 texCoords = ParallaxMapping(IN.Tex, IN.eyeVectorTS); // Simple Parallax Mapping
+                texCoords = ParallaxMapping(IN.Tex, IN.eyeVectorTS); // Simple Parallax Mapping
                 break;
             }
         case 2:
         {
-                 texCoords = ParallaxSteepMapping(IN.Tex, IN.eyeVectorTS);
+                texCoords = ParallaxSteepMapping(IN.Tex, IN.eyeVectorTS);
                 break;
             }
         case 3:
         {
-                 texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
+                texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
                 break;
             }
         case 4:
         {
-                 texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+                texCoords = IN.Tex;
+                if (useP == 1)
+                {
+                    texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+                }
                 break;
             }
         
@@ -350,14 +357,18 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
         discard;
 	
 	// Mapping
-    float4 bumpMap = txNormal.Sample(samLinear, texCoords);
-	
-    bumpMap = (bumpMap * 2.0f) - 1.0f;
-    bumpMap = float4(normalize(bumpMap.xyz), 1);
-	
-    bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
-    
+    float4 bumpMap = float4(IN.Tex, 0,0);
 
+    unsigned int useN = useNormals;
+    
+    if (useN == 1)
+    {
+        bumpMap = txNormal.Sample(samLinear, texCoords);
+        bumpMap = (bumpMap * 2.0f) - 1.0f;
+        bumpMap = float4(normalize(bumpMap.xyz), 1);
+        bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
+    }
+    
     float4 texColor = { 1, 1, 1, 1 };
 
     output.Emissive = Material.Emissive;
@@ -365,7 +376,6 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     output.Specular = Material.Specular;
     output.Normal = bumpMap;
     output.Position = IN.worldPos;
-    output.Depth = -IN.worldPos.z;
 
     if (Material.UseTexture)
     {

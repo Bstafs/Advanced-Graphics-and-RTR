@@ -5,6 +5,10 @@
 
 // View Matrix
 
+Texture2D txDiffuse : register(t0);
+
+SamplerState samLinear : register(s0);
+
 cbuffer ConstantBuffer : register(b0)
 {
     matrix World;
@@ -43,8 +47,10 @@ PS_INPUT VS(VS_INPUT input)
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 float4 PS(PS_INPUT input) : SV_Target
-{
-   
+{ 
+    float4 diffuse = txDiffuse.Sample(samLinear, input.Tex);
     
-    return 0;
+    clip(diffuse.a - 0.15f);
+    
+    return diffuse;
 }

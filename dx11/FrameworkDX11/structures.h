@@ -18,6 +18,10 @@ struct ConstantBuffer
 	unsigned int defID;
 	unsigned int renID;
 	XMFLOAT2 padding01;
+
+	unsigned int useNormals;
+	unsigned int useParallax;
+	XMFLOAT2 padding02;
 };
 
 struct BlurBufferHorizontal
