@@ -315,7 +315,6 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     float parallaxHeight;
     
     int id = defID;
-    unsigned int useP = useParallax;
     float2 texCoords = IN.Tex;
     
     switch (id)
@@ -342,11 +341,9 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
             }
         case 4:
         {
-                texCoords = IN.Tex;
-                if (useP == 1)
-                {
-                    texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
-                }
+
+                texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+
                 break;
             }
         
@@ -357,17 +354,11 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
         discard;
 	
 	// Mapping
-    float4 bumpMap = float4(IN.Tex, 0,0);
+    float4 bumpMap = txNormal.Sample(samLinear, texCoords);
+    bumpMap = (bumpMap * 2.0f) - 1.0f;
+    bumpMap = float4(normalize(bumpMap.xyz), 1);
+    bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
 
-    unsigned int useN = useNormals;
-    
-    if (useN == 1)
-    {
-        bumpMap = txNormal.Sample(samLinear, texCoords);
-        bumpMap = (bumpMap * 2.0f) - 1.0f;
-        bumpMap = float4(normalize(bumpMap.xyz), 1);
-        bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
-    }
     
     float4 texColor = { 1, 1, 1, 1 };
 
