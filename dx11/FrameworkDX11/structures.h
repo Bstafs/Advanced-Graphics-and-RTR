@@ -55,8 +55,8 @@ struct _Material
 		, Specular(1.0f, 1.0f, 1.0f, 1.0f)
 		, SpecularPower(128.0f)
 		, UseTexture(false)
-		,  useNormals(false)
-	    ,  useParallax(false)
+		,  useNormals(true)
+	    ,  useParallax(true)
 	{}
 
 	DirectX::XMFLOAT4   Emissive;
@@ -148,4 +148,6 @@ struct LightPropertiesConstantBuffer
 	DirectX::XMFLOAT4   GlobalAmbient;
 	//----------------------------------- (16 byte boundary)
 	Light               Lights[MAX_LIGHTS]; // 80 * 8 bytes
+
+	DirectX::XMMATRIX lightSpaceMatrices;
 };  // Total:                                  672 bytes (42 * 16)

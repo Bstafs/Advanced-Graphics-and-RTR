@@ -35,7 +35,8 @@ void SetShader(wstring filename);
 void SetPPShader(wstring fn);
 void UpdateFunctions();
 void RenderDeferred();
-void RenderDeferredShadows();
+void RenderDeferredShadowsOmni();
+void RenderDeferredShadowsDirectional();
 // Globals
 
 // DirectX Setup
@@ -62,7 +63,7 @@ ID3D11RenderTargetView* g_pGbufferRenderLightingTargetView = nullptr;
 
 // Textures
 ID3D11Texture2D* g_pDepthStencil = nullptr;
-ID3D11Texture2D* g_pDepthStencilShadow[6];
+ID3D11Texture2D* g_pDepthStencilShadow;
 ID3D11Texture2D* g_pRTTRrenderTargetTexture = nullptr;
 ID3D11Texture2D* g_pGbufferTargetTextures[6];
 ID3D11Texture2D* g_pGbufferTargetLightingTextures = nullptr;
@@ -72,11 +73,11 @@ ID3D11ShaderResourceView* g_pRTTShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pQuadShaderResourceView = nullptr;
 ID3D11ShaderResourceView* g_pGbufferShaderResourceView[6];
 ID3D11ShaderResourceView* g_pGbufferShaderResourceLightingView = nullptr;
-ID3D11ShaderResourceView* g_pShadowShaderResourceView[6];
+ID3D11ShaderResourceView* g_pShadowShaderResourceView;
 
 // Stencils
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
-ID3D11DepthStencilView* g_pDepthStencilShadowView[6];
+ID3D11DepthStencilView* g_pDepthStencilShadowView;
 
 // Shaders
 ID3D11VertexShader* g_pVertexShader = nullptr;
@@ -91,6 +92,11 @@ ID3D11PixelShader* g_pGbufferPS = nullptr;
 ID3D11VertexShader* g_pGbufferLightingVS = nullptr;
 ID3D11PixelShader* g_pGbufferLightingPS = nullptr;
 
+//Shadow Depth
+ID3D11VertexShader* g_pShadowPreVS = nullptr;
+ID3D11PixelShader* g_pShadowPrePS = nullptr;
+
+//Shadows
 ID3D11VertexShader* g_pShadowVS = nullptr;
 ID3D11PixelShader* g_pShadowPS = nullptr;
 
@@ -148,7 +154,7 @@ float rotationX = 0.0f;
 float rotationY = 0.0f;
 
 // ImGui
-wstring shaderName(L"shader_shadows.fx");
+wstring shaderName(L"shader.fx");
 const wchar_t* filename = shaderName.c_str();
 
 wstring ppName(L"shaderQuad.fx");
@@ -166,13 +172,14 @@ const char* renderLabelSimple = ("Shader: Simple");
 const char* renderLabelSteep = ("Shader: Steep");
 const char* renderLabelRelief = ("Shader: Relief");
 const char* renderLabelOcclusion = ("Shader: Occlusion");
-const char* renderLOcclusionShadow = ("Shader: Occlusion Shadow");
+const char* renderLOcclusionShadow = ("Shader: Occlusion Self-Shadow");
 
 const char* deferredLabelNormal = ("Shader: Normal");
 const char* deferredLabelSimple = ("Shader: Simple");
 const char* deferredLabelSteep = ("Shader: Steep");
 const char* deferredLabelRelief = ("Shader: Relief");
 const char* deferredLabelOcclusion = ("Shader: Occlusion");
+const char* deferredLabelOcclusionShadow = ("Shader: Occlusion Shadow-Mapping");
 
 unsigned int deferredID = 4;
 const char* deferredLabelNames;
@@ -180,7 +187,7 @@ const char* deferredLabelNames;
 unsigned int renderID = 0;
 const char* renderLabelNames;
 
-unsigned int updateID = 2;
+unsigned int updateID = 3;
 
 unsigned int lightTypeNumber = 1;
 
@@ -235,12 +242,17 @@ void UpdateFunctions()
 		break;
 	}
 	case 2:
-
 	{
-		//RenderDeferred();
-		RenderDeferredShadows();
+		RenderDeferred();
 		break;
 	}
+	case 3:
+	{
+		//RenderDeferredShadowsOmni();
+		RenderDeferredShadowsDirectional();
+		break;
+	}
+
 	}
 }
 
@@ -501,12 +513,11 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	for (int i = 0; i < 6; i++)
-	{
-		hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencilShadow[i]);
-		if (FAILED(hr))
-			return hr;
-	}
+
+	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencilShadow);
+	if (FAILED(hr))
+		return hr;
+
 
 	//Texture Render
 	D3D11_TEXTURE2D_DESC textureDesc;
@@ -639,23 +650,20 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	for (int i = 0; i < 6; i++)
-	{
-		hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilShadow[i], &descDSV, &g_pDepthStencilShadowView[i]);
-		if (FAILED(hr))
-			return hr;
-	}
+	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilShadow, &descDSV, &g_pDepthStencilShadowView);
+	if (FAILED(hr))
+		return hr;
+
 
 
 	shaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 
-	for (int i = 0; i < 6; i++)
-	{
-		hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow[i], &shaderResourceViewDesc, &g_pShadowShaderResourceView[i]);
-		g_pDepthStencilShadow[i]->Release();
-		if (FAILED(hr))
-			return hr;
-	}
+
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow, &shaderResourceViewDesc, &g_pShadowShaderResourceView);
+	g_pDepthStencilShadow->Release();
+	if (FAILED(hr))
+		return hr;
+
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
@@ -726,6 +734,24 @@ HRESULT		InitMesh()
 
 	// Create the vertex shader
 	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pVertexShader);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+
+	// Compile the vertex shader
+	pVSBlob = nullptr;
+	hr = CompileShaderFromFile(L"shader_shadows.fx", "VS", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &g_pShadowPreVS);
 	if (FAILED(hr))
 	{
 		pVSBlob->Release();
@@ -850,6 +876,22 @@ HRESULT		InitMesh()
 
 	// Create the pixel shader
 	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pPixelShader);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
+	// Compile the pixel shader
+	pPSBlob = nullptr;
+	hr = CompileShaderFromFile(L"shader_shadows.fx", "PS", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(nullptr,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &g_pShadowPrePS);
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
@@ -1138,6 +1180,28 @@ void SetupLightForRenderDirectional()
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 }
 
+void SetupLightForRenderDirectional(XMMATRIX lightSpace)
+{
+	g_Lighting.Enabled = static_cast<int>(true);
+	g_Lighting.LightType = 0;
+	g_Lighting.Color = XMFLOAT4(Colors::White);
+	g_Lighting.SpotAngle = XMConvertToRadians(45.0f);
+	g_Lighting.ConstantAttenuation = 1.0f;
+	g_Lighting.LinearAttenuation = 1;
+	g_Lighting.QuadraticAttenuation = 1;
+
+	XMFLOAT3 temp = g_pCurrentCamera->GetPosition();
+
+	XMFLOAT4 temp4 = { temp.x, temp.y, temp.z, 0 };
+
+	LightPropertiesConstantBuffer lightProperties;
+	//lightProperties.EyePosition = g_Lighting.Position;
+	lightProperties.EyePosition = temp4;
+	lightProperties.Lights[0] = g_Lighting;
+	lightProperties.lightSpaceMatrices = lightSpace;
+	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
+}
+
 void SetupLightForRenderSpot()
 {
 	g_Lighting.Enabled = static_cast<int>(true);
@@ -1408,6 +1472,11 @@ void IMGUI()
 		if (deferredID > 4)
 		{
 			deferredID = 0;
+		}
+
+		if (ImGui::Button("Render Deferred Shadow Mapping"))
+		{
+			updateID = 3;
 		}
 	}
 
@@ -1814,7 +1883,7 @@ void RenderDeferred()
 	g_pImmediateContext->PSSetShaderResources(8, 1, shaderClear);
 }
 
-void RenderDeferredShadows()
+void RenderDeferredShadowsOmni()
 {
 	float t = CalculateDeltaTime();
 	if (t == 0.0f)
@@ -1822,6 +1891,7 @@ void RenderDeferredShadows()
 
 	XMMATRIX mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	XMMATRIX shadowCubes[6];
 
 	// Clear the back buffer 
 	for (int i = 0; i < 6; i++)
@@ -1834,7 +1904,7 @@ void RenderDeferredShadows()
 	ConstantBuffer cb;
 	cb.mProjection = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetProjection()));
 	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0,0);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	g_GameObject.update(t, g_pImmediateContext);
 	g_PlaneObject.update(t, g_pImmediateContext);
@@ -1842,17 +1912,24 @@ void RenderDeferredShadows()
 	// Shadow Buffer Pass
 	for (int i = 0; i < 6; i++)
 	{
-		g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilShadowView[i], D3D11_CLEAR_DEPTH, 1.0f, 0);
+		g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilShadowView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
-		g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView[i]);
+		g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView);
+
+
+		LightPropertiesConstantBuffer lightProperties;
+		lightProperties.EyePosition = g_Lighting.Position;
+		lightProperties.Lights[0] = g_Lighting;
+		g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 
 		XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0);
 
+		// Create each direction of light for shadow cube map (Omni Directional)
 		switch (i)
 		{
 		case 0:
 		{
-			At = XMVectorSet(-1.0f, 0.0f,0.0f,0.0f); // Left
+			At = XMVectorSet(-1.0f, 0.0f, 0.0f, 0.0f); // Left
 			break;
 		}
 		case 1:
@@ -1867,22 +1944,24 @@ void RenderDeferredShadows()
 			At = XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f); // Down
 			break;
 		case 4:
-			At = XMVectorSet(0.0f, 0.0f, 1.0f,0.0f); // Forward
+			At = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // Forward
 			break;
-		case 5: 
+		case 5:
 			At = XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f); // Forward
 			break;
 		}
 
 
-		XMFLOAT4X4 lightViewMatrix;
+		XMFLOAT4X4 lightViewMatrix[6];
 		XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
 		XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-		XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
+		XMStoreFloat4x4(&lightViewMatrix[i], XMMatrixLookToLH(Eye, At, Up));
+
+		shadowCubes[i] = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix[i]));
 
 		cb.mWorld = XMMatrixTranspose(mGOPlane);
-		cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
-		g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0 ,0);
+		cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix[i]));
+		g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 		// Plane Render
 		UINT stride = sizeof(SimpleVertexPlane);
@@ -1890,11 +1969,11 @@ void RenderDeferredShadows()
 		g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
 		g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 		g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-		g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+		g_pImmediateContext->VSSetShader(g_pShadowPreVS, nullptr, 0);
 		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 		g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
-		g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+		g_pImmediateContext->PSSetShader(g_pShadowPrePS, nullptr, 0);
 		ID3D11Buffer* materialCB = g_PlaneObject.getMaterialConstantBuffer();
 		g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 		g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
@@ -1922,25 +2001,8 @@ void RenderDeferredShadows()
 		g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 
 		g_GameObject.draw(g_pImmediateContext);
-	}
 
-	switch (lightTypeNumber)
-	{
-	case 0:
-	{
-		SetupLightForRenderDirectional();
-		break;
-	}
-	case 1:
-	{
 		SetupLightForRenderPoint();
-		break;
-	}
-	case 2:
-	{
-		SetupLightForRenderSpot();
-		break;
-	}
 	}
 
 	// G Buffer Pass
@@ -2011,9 +2073,12 @@ void RenderDeferredShadows()
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	g_pImmediateContext->PSSetShader(g_pGbufferLightingPS, nullptr, 0);
-	g_pImmediateContext->VSSetShader(g_pGbufferLightingVS, nullptr, 0);
+	g_pImmediateContext->VSSetShader(g_pShadowVS, nullptr, 0);
+	g_pImmediateContext->PSSetShader(g_pShadowPS, nullptr, 0);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 	g_pImmediateContext->PSSetShaderResources(0, 6, &g_pGbufferShaderResourceView[0]);
+	g_pImmediateContext->PSSetShaderResources(6, 6, &g_pShadowShaderResourceView);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	// Quad Pass
@@ -2036,13 +2101,157 @@ void RenderDeferredShadows()
 
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
-	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(1, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(2, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(3, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(4, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(5, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(6, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(7, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(8, 1, shaderClear);
+	for (int i = 0; i < 15; i++)
+	{
+		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
+	}
+}
+
+void RenderDeferredShadowsDirectional()
+{
+	float t = CalculateDeltaTime();
+	if (t == 0.0f)
+		return;
+
+	XMMATRIX mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());
+	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	XMMATRIX shadowCube;
+	// Clear the back buffer 
+	for (int i = 0; i < 6; i++)
+	{
+		g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderTargetView[i], Colors::Black);
+	}
+
+	g_pImmediateContext->ClearRenderTargetView(g_pGbufferRenderLightingTargetView, Colors::Black);
+
+	ConstantBuffer cb;
+	cb.mProjection = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetProjection()));
+	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	g_GameObject.update(t, g_pImmediateContext);
+	g_PlaneObject.update(t, g_pImmediateContext);
+
+	// Shadow Buffer Pass
+
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilShadowView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView);
+
+
+	LightPropertiesConstantBuffer lightProperties;
+	lightProperties.EyePosition = g_Lighting.Position;
+	lightProperties.Lights[0] = g_Lighting;
+	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
+
+	XMFLOAT4X4 lightViewMatrix;
+	XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
+	XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0);
+	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
+
+	shadowCube = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
+
+	SetupLightForRenderDirectional(shadowCube);
+
+	// G Buffer Pass
+
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
+
+
+	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetView()));
+	cb.mWorld = XMMatrixTranspose(mGOPlane);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	// Plane Render
+	UINT stride = sizeof(SimpleVertexPlane);
+	UINT offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
+	ID3D11Buffer* materialCB = g_PlaneObject.getMaterialConstantBuffer();
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	g_pImmediateContext->PSSetSamplers(0, 1, g_PlaneObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetShaderResources(0, 1, g_PlaneObject.getTextureResourceView());
+
+	g_PlaneObject.draw(g_pImmediateContext);
+
+	// Cube Render
+	cb.mWorld = XMMatrixTranspose(mGOCube);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
+
+	stride = sizeof(SimpleVertex);
+	offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
+	materialCB = g_GameObject.getMaterialConstantBuffer();
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+
+	g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
+
+	g_GameObject.draw(g_pImmediateContext);
+
+	// Lighting Pass
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pGbufferRenderLightingTargetView, g_pDepthStencilView);
+
+	float blend[4] = { 1,1,1, 1 };
+	g_pImmediateContext->OMSetBlendState(blendState, blend, 0xFFFFFFFF);
+
+	stride = sizeof(SimpleVertexQuad);
+	offset = 0;
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
+	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
+	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
+
+	g_pImmediateContext->VSSetShader(g_pShadowVS, nullptr, 0);
+	g_pImmediateContext->PSSetShader(g_pShadowPS, nullptr, 0);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 6, &g_pGbufferShaderResourceView[0]);
+	g_pImmediateContext->PSSetShaderResources(6, 1, &g_pShadowShaderResourceView);
+	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+	// Quad Pass
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
+	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
+
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
+	g_pImmediateContext->DrawIndexed(6, 0, 0);
+
+	IMGUI();
+
+	g_pImmediateContext->OMSetBlendState(NULL, blend, 0xFFFFFFFF);
+	g_pImmediateContext->OMSetDepthStencilState(NULL, 0);
+	// Present our back buffer to our front buffer
+	g_pSwapChain->Present(0, 0);
+
+	// Set Shader Resource to Null / Clear
+	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
+	for (int i = 0; i < 15; i++)
+	{
+		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
+	}
 }
