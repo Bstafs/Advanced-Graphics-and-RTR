@@ -17,7 +17,8 @@ struct ConstantBuffer
 
 	unsigned int defID;
 	unsigned int renID;
-	XMFLOAT2 padding01;
+	unsigned int ppID;
+	float padding08;
 
 	unsigned int useNormals;
 	unsigned int useParallax;
@@ -27,7 +28,8 @@ struct ConstantBuffer
 struct BlurBufferHorizontal
 {
 	BOOL horizontal; // 4 bytes HLSL, using bool uses 1 byte and so HLSL can't interpret it unless specified as BOOL
-	XMFLOAT3 padding01; // 12 bytes 
+	unsigned int ppID;
+	XMFLOAT2 padding01; // 12 bytes 
 };
 
 struct BlurBufferVertical
@@ -149,5 +151,5 @@ struct LightPropertiesConstantBuffer
 	//----------------------------------- (16 byte boundary)
 	Light               Lights[MAX_LIGHTS]; // 80 * 8 bytes
 
-	DirectX::XMMATRIX lightSpaceMatrices;
+	DirectX::XMMATRIX lightSpaceMatricee[6];
 };  // Total:                                  672 bytes (42 * 16)

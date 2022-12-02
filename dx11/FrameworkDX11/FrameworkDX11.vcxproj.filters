@@ -46,6 +46,9 @@
     <FxCompile Include="deffered_shader_shadow.fx">
       <Filter>DeferredShading</Filter>
     </FxCompile>
+    <FxCompile Include="shaderQuadTint.fx">
+      <Filter>PostProcessing</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">

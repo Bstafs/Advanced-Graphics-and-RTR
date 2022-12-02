@@ -105,7 +105,7 @@ float DoAttenuation(Light light, float d)
 
 float3 DoDiffuse(float3 normal, float3 vertexToLight, float3 diffuse)
 {
-    float3 L = -Lights[0].Direction;
+    float3 L = normalize(vertexToLight);
     float lightAmount = saturate(dot(normal, vertexToLight));
     float3 color = Lights[0].Color * lightAmount;
     float3 finalDiffuse = color * diffuse;
@@ -113,12 +113,14 @@ float3 DoDiffuse(float3 normal, float3 vertexToLight, float3 diffuse)
     return finalDiffuse;
 }
 
-void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out float attenuation, in float3 position)
+void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out float attenuation, out float3 LightDirectionToVertex, in float3 position)
 {
     vertexToEye = EyePosition - position;
     vertexToLight = Lights[0].Position - position;
     
-    float3 LightDirectionToVertex = -vertexToLight;
+    vertexToEye = normalize(vertexToEye);
+    
+    LightDirectionToVertex = -vertexToLight;
     float distance = length(LightDirectionToVertex);
     LightDirectionToVertex = LightDirectionToVertex / distance;
     
@@ -127,7 +129,7 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
         
     // Attenuation
     attenuation = DoAttenuation(Lights[0], distance);
-    
+
 }
 
 float DoSpotCone(Light light, float3 vertexToLight)
@@ -141,14 +143,12 @@ float DoSpotCone(Light light, float3 vertexToLight)
     return smoothstep(minCos, maxCos, cosAngle);
 }
 
-float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive)
+float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex)
 {
-    float3 lightDirection = Lights[0].Direction.xyz;
-    
-   // Specular
-    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, specularPower);
-   // Diffuse
+    float3 lightDirection = -Lights[0].Direction.xyz;
+   
     float3 finalDiffuse = DoDiffuse(normal, lightDirection, diffuse);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower);
     float3 finalSpecular = spec * diffuse;
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
@@ -167,7 +167,7 @@ float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 no
     return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
 }
 
-float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive)
+float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex)
 {
     float spotIntensity = DoSpotCone(Lights[0], vertexToLight);
     
@@ -206,11 +206,12 @@ float4 PS(PS_INPUT input) : SV_Target
     
     float3 vertexToEye;
     float3 vertexToLight;
+    float3 LightDirectionToVertex;
     float attenuation;
     
     GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower);
     
-    CreateLightPositions(vertexToEye, vertexToLight, attenuation, position);
+    CreateLightPositions(vertexToEye, vertexToLight, attenuation, LightDirectionToVertex, position);
     
     float4 finalColor;
    
@@ -222,7 +223,7 @@ float4 PS(PS_INPUT input) : SV_Target
     {
         case 0:
         {
-                finalColor = DoDirecitonalLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive);
+                finalColor = DoDirecitonalLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex);
                 break;
             }
         case 1:
@@ -232,7 +233,7 @@ float4 PS(PS_INPUT input) : SV_Target
             }
         case 2:
         {
-                finalColor = DoSpotLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive);
+                finalColor = DoSpotLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex);
                 break;
             }
     }

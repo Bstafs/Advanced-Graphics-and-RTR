@@ -53,6 +53,9 @@ public:
 	float getPosition(float x, float y, float z) { return x = m_position.x, y = m_position.y, z = m_position.z; }
 	void setPosition(XMFLOAT3 position);
 
+	XMFLOAT3 getRotation() { return m_rotation; }
+	float getRotation(float x, float y, float z) { return x = m_rotation.x, y = m_rotation.y, z = m_rotation.z; }
+
 	XMFLOAT3							m_position;
 	XMFLOAT3							m_rotation;
 

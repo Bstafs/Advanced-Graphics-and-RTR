@@ -320,7 +320,7 @@ float4 PS(PS_INPUT IN) : SV_TARGET
     }
 	
 	// Compute Lighting
-    LightingResult lit = ComputeLighting(IN.eyeVectorTS, -IN.lightVectorTS, bumpMap);
+    LightingResult lit = ComputeLighting(IN.eyeVectorTS, IN.lightVectorTS, bumpMap);
 
     float4 texColor = { 1, 1, 1, 1 };
 
@@ -334,8 +334,8 @@ float4 PS(PS_INPUT IN) : SV_TARGET
         texColor = txDiffuse.Sample(samLinear, texCoords);
     }
 
-    float shadowFactor = ParallaxShadowsRedon(texCoords, IN.lightVectorTS);
-    float4 finalColor = (emissive + ambient + (diffuse + specular) * pow(shadowFactor, 4)) * texColor; // With Shadow
+    //float shadowFactor = ParallaxShadowsRedon(texCoords, IN.lightVectorTS);
+    float4 finalColor = (emissive + ambient + (diffuse + specular)) * texColor; // With Shadow
 
     return finalColor;
 }

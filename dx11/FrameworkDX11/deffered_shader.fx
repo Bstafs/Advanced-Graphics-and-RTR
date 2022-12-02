@@ -315,7 +315,6 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     float parallaxHeight;
     
     int id = defID;
-    id = 4;
     float2 texCoords = IN.Tex;
     
     switch (id)

@@ -11,21 +11,13 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register(t0);
 
-cbuffer BlurBufferHorizontal : register(b0)
+cbuffer BlurBuffer : register(b4)
 {
     bool horizontal;
-    float3 padding01;
-};
+    float3 padding;
+}
 
-cbuffer BlurBufferVertical : register(b1)
-{
-    bool vertical;
-    float3 padding02;
-};
-
-
-
-SamplerState bloomBlur : register(s0);
+SamplerState samLinear : register(s0);
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -35,14 +27,14 @@ SamplerState bloomBlur : register(s0);
 //--------------------------------------------------------------------------------------
 struct QuadVS_Input
 {
-    float4 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : POSITION;
+	float2 Tex : TEXCOORD0;
 };
 
 struct QuadVS_Output
 {
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : SV_POSITION;
+	float2 Tex : TEXCOORD0;
 };
 
 //--------------------------------------------------------------------------------------
@@ -50,48 +42,19 @@ struct QuadVS_Output
 //--------------------------------------------------------------------------------------
 QuadVS_Output QuadVS(QuadVS_Input Input)
 {
-    QuadVS_Output Output;
+	QuadVS_Output Output;
     Output.Pos = Input.Pos;
     Output.Tex = Input.Tex;
-    return Output;
+	return Output;
 }
-
-float3 GuassianBlur(float2 texCoords)
-{
-    float weight[5] = { 0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216 };
-    
-    float3 vColour = txDiffuse.Sample(bloomBlur, texCoords).rgb * weight[0];
-    float2 textureOffset = 1 / txDiffuse.Sample(bloomBlur, 0);
-
-    //textureOffset.y = 0.0;
-    
-    if (horizontal == true)
-    {
-        for (int i = 1; i < 5; i++)
-        {
-            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(textureOffset.y * i, 0.0)).rgb * weight[i];
-            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(textureOffset.y * i, 0.0)).rgb * weight[i];
-        }
-    }
-    if (vertical == true)
-    {
-        for (int i = 1; i < 5; i++)
-        {
-            vColour += txDiffuse.Sample(bloomBlur, texCoords + float2(0.0, textureOffset.y * i)).rgb * weight[i];
-            vColour += txDiffuse.Sample(bloomBlur, texCoords - float2(0.0, textureOffset.y * i)).rgb * weight[i];
-        }
-    }
-    
-    return vColour;
-}
-
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 float4 QuadPS(QuadVS_Output Input) : SV_TARGET
 {
-    float3 vBlur = GuassianBlur(Input.Tex).rgb;
-   
-    return float4(vBlur, 1.0);
+    float4 vColour = txDiffuse.Sample(samLinear, Input.Tex);
+    
+    vColour.x = 1;
+    
+    return vColour;
 }
-

@@ -418,7 +418,7 @@ void DrawableGameObject::update(float t, ID3D11DeviceContext* pContext)
 	XMMATRIX world = mTranslate;
 	if (isSpinning == false)
 	{
-		 world = mTranslate * mRotationX * mRotationY * mRotationZ;
+		 world = mRotationX * mRotationY * mRotationZ * mTranslate;
 	}
 	else if (isSpinning == true)
 	{

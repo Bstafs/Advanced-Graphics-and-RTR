@@ -13,8 +13,9 @@ Texture2D txDiffuse : register(t0);
 
 cbuffer BlurBufferHorizontal : register(b0)
 {
-    bool horizontal;
-    float3 padding01;
+    bool horizontal; // 4 bytes HLSL, using bool uses 1 byte and so HLSL can't interpret it unless specified as BOOL
+    unsigned int ppID;
+    float2 padding01; // 12 bytes 
 };
 
 cbuffer BlurBufferVertical : register(b1)
