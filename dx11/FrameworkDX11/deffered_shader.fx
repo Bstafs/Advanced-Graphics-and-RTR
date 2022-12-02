@@ -298,7 +298,7 @@ PS_INPUT VS(VS_INPUT input)
     output.TBN = float3x3(T, B, N);
     
     float3x3 TBN_inv = transpose(output.TBN);
-
+    
 	// Set To Lighting To Tangent Space
     output.eyeVectorTS = VectorToTangentSpace(vertexToEye.xyz, TBN_inv);
     //output.lightVectorTS = VectorToTangentSpace(vertexToLight.xyz, TBN_inv);
@@ -354,7 +354,7 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
 	
-	// Mapping
+	// Bump Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
     bumpMap = (bumpMap * 2.0f) - 1.0f;
     bumpMap = float4(normalize(bumpMap.xyz), 1);

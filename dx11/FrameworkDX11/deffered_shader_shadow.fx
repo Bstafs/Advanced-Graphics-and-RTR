@@ -136,20 +136,18 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
 
 float CalculateShadow(float4 lightSpace, float3 normal, float3 lightDir)
 {
-    float3 projectionCoords = lightSpace.xyz;
-    projectionCoords = projectionCoords * 0.5 + 0.5;
-    float closestDepth;
-
-    closestDepth = txShadow.Sample(samLinear, projectionCoords.xy).r;
- 
-    float currentDepth = projectionCoords.z;
+    float3 projectionCoords = lightSpace.xyz / lightSpace.w * 0.5 + 0.5;
     
+    float  closestDepth = txShadow.Sample(samLinear, projectionCoords.xy).z;
+   
+    float currentDepth = projectionCoords.z;
+
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-        
+    float shadow = currentDepth < closestDepth ? 1.0 : 0.0;
+    
     if (projectionCoords.z > 1.0)
         shadow = 0.0;
- 
+    
     return shadow;
 }
 
@@ -166,20 +164,19 @@ float DoSpotCone(Light light, float3 vertexToLight)
 
 float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 position)
 {
-    float3 lightDirection = Lights[0].Direction.xyz;
+    float3 lightDirection = normalize(Lights[0].Direction.xyz);
 
-    float4 lightSpacePosition = normalize(mul(position, lightSpaceMatrix));
-    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight);
+    float4 lightSpacePosition = mul(float4(-position, 1.0), lightSpaceMatrix);
+    float shadows = CalculateShadow(lightSpacePosition, normal, lightDirection);
     
-  
    // Specular
     float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, specularPower);
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, lightDirection, diffuse);
     float3 finalSpecular = spec * diffuse;
-    float3 finalAmbient = ((ambient * GlobalAmbient) * diffuse) * (1.0 - shadows);
+    float3 finalAmbient = ((ambient * GlobalAmbient) * diffuse);
     
-    return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
+    return float4((emissive + (finalAmbient + (1.0 - shadows))) * (finalDiffuse + finalSpecular), 1.0);
 }
 
 float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 position)
@@ -191,7 +188,7 @@ float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 no
     float3 finalSpecular = spec * diffuse;
     float3 finalAmbient = ((ambient * GlobalAmbient) * diffuse);
     
-    return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
+    return float4((emissive + finalAmbient)  * (finalDiffuse + finalSpecular), 1.0);
 }
 
 float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 position)
@@ -202,7 +199,7 @@ float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 nor
     float4 spec = DoSpecular(Lights[0], vertexToEye, vertexToLight, normal, specularPower) * attenuation * spotIntensity;
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight, diffuse) * attenuation * spotIntensity;
-    float3 finalSpecular = spec * diffuse;
+    float3 finalSpecular = spec.xyz * diffuse;
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
     return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
