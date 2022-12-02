@@ -48,9 +48,7 @@ struct _Material
 	//----------------------------------- (16 byte boundary)
     float SpecularPower; // 4 bytes
     bool UseTexture; // 4 bytes
-    bool useNormals;
-    bool useParallax;
-    
+    float2 Padding; // 8 bytes
 	//----------------------------------- (16 byte boundary)
 }; // Total:               // 80 bytes ( 5 * 16 )
 
@@ -301,23 +299,16 @@ float4 PS(PS_INPUT IN) : SV_TARGET
 {
     float parallaxHeight;
     
-    float2 texCoords = IN.Tex;
-    if (Material.useNormals)
-    {
-         texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
-    }
+    float2 texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
     
     if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
 	
 	// Mapping
-    float3 bumpMap = IN.Norm;
-    if (Material.useParallax)
-    {
-        bumpMap = txNormal.Sample(samLinear, texCoords);
-        bumpMap = (bumpMap * 2.0f) - 1.0f;
-        bumpMap = float4(normalize(bumpMap.xyz), 1);
-    }
+    float4 bumpMap = txNormal.Sample(samLinear, texCoords);
+	
+    bumpMap = (bumpMap * 2.0f) - 1.0f;
+    bumpMap = float4(normalize(bumpMap.xyz), 1);
 	
 	// Compute Lighting
     LightingResult lit = ComputeLighting(IN.eyeVectorTS, -IN.lightVectorTS, bumpMap);

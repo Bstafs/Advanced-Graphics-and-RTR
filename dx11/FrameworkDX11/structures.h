@@ -55,8 +55,7 @@ struct _Material
 		, Specular(1.0f, 1.0f, 1.0f, 1.0f)
 		, SpecularPower(128.0f)
 		, UseTexture(false)
-		,  useNormals(false)
-	    ,  useParallax(false)
+		, Depth(0.5f,0.5f,0.5f,0.5f)
 	{}
 
 	DirectX::XMFLOAT4   Emissive;
@@ -71,9 +70,9 @@ struct _Material
 	// Add some padding complete the 16 byte boundary.
 	int                 UseTexture;
 	// Add some padding to complete the 16 byte boundary.
-	int useNormals;
-	int useParallax; 
+	float               Padding[2];
 	//----------------------------------- (16 byte boundary)
+	DirectX::XMFLOAT4   Depth;
 }; // Total:                                80 bytes (5 * 16)
 
 struct MaterialPropertiesConstantBuffer
