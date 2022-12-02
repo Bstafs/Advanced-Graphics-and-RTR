@@ -35,11 +35,8 @@ void SetShader(wstring filename);
 void SetPPShader(wstring fn);
 void UpdateFunctions();
 void RenderDeferred();
-<<<<<<< HEAD
 void RenderDeferredShadowsOmni();
 void RenderDeferredShadowsDirectional();
-=======
->>>>>>> parent of 289ce68... Depth Done
 // Globals
 
 // DirectX Setup
@@ -190,11 +187,7 @@ const char* deferredLabelNames;
 unsigned int renderID = 0;
 const char* renderLabelNames;
 
-<<<<<<< HEAD
 unsigned int updateID = 3;
-=======
-unsigned int updateID = 0;
->>>>>>> parent of 289ce68... Depth Done
 
 unsigned int lightTypeNumber = 1;
 
@@ -251,15 +244,12 @@ void UpdateFunctions()
 	case 2:
 	{
 		RenderDeferred();
-<<<<<<< HEAD
 		break;
 	}
 	case 3:
 	{
 		//RenderDeferredShadowsOmni();
 		RenderDeferredShadowsDirectional();
-=======
->>>>>>> parent of 289ce68... Depth Done
 		break;
 	}
 
@@ -548,16 +538,16 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
+	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetLightingTextures);
+	if (FAILED(hr))
+		return hr;
+
 	for (int i = 0; i < 6; i++)
 	{
 		hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetTextures[i]);
 		if (FAILED(hr))
 			return hr;
 	}
-
-	hr = g_pd3dDevice->CreateTexture2D(&textureDesc, nullptr, &g_pGbufferTargetLightingTextures);
-	if (FAILED(hr))
-		return hr;
 
 	renderTargetViewDesc.Format = textureDesc.Format;
 	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
@@ -665,30 +655,17 @@ HRESULT InitDevice()
 		return hr;
 
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC sr_desc;
-	sr_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-	sr_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	sr_desc.Texture2D.MostDetailedMip = 0;
-	sr_desc.Texture2D.MipLevels = -1;
 
-<<<<<<< HEAD
+	shaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
 
 	hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow, &shaderResourceViewDesc, &g_pShadowShaderResourceView);
 	g_pDepthStencilShadow->Release();
 	if (FAILED(hr))
 		return hr;
 
-=======
-	for (int i = 0; i < 6; i++)
-	{
-		hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow[i], &sr_desc, &g_pShadowShaderResourceView[i]);
-		g_pDepthStencilShadow[i]->Release();
-		if (FAILED(hr))
-			return hr;
-	}
->>>>>>> parent of 289ce68... Depth Done
 
-	g_pImmediateContext->OMSetRenderTargets(2, &g_pRenderTargetView, g_pDepthStencilView);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	//Blend state setup
 	D3D11_BLEND_DESC blendDesc;
@@ -1064,11 +1041,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_Lighting.Position.y = 0.0f;
 	g_Lighting.Position.z = -3.0f;
 
-<<<<<<< HEAD
 	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 100.0f);
-=======
-	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 25.0f);
->>>>>>> parent of 289ce68... Depth Done
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
@@ -1797,7 +1770,6 @@ void RenderDeferred()
 	}
 	}
 
-<<<<<<< HEAD
 	// G Buffer Pass
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
@@ -1985,21 +1957,6 @@ void RenderDeferredShadowsOmni()
 
 		cb.mWorld = XMMatrixTranspose(mGOPlane);
 		cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix[i]));
-=======
-	// Shadow Buffer Pass
-	for (int i = 0; i < 6; i++)
-	{
-		g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
-		g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-		g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView[i]);
-
-		cb.mWorld = XMMatrixTranspose(mGOPlane);
-		cb.mView = XMMatrixTranspose(view);
-		cb.mProjection = XMMatrixTranspose(projection);
-		cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-		cb.useNormals = 0;
-		cb.useParallax = 0;
->>>>>>> parent of 289ce68... Depth Done
 		g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 		// Plane Render
@@ -2008,19 +1965,11 @@ void RenderDeferredShadowsOmni()
 		g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
 		g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 		g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-<<<<<<< HEAD
 		g_pImmediateContext->VSSetShader(g_pShadowPreVS, nullptr, 0);
 		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 		g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 
 		g_pImmediateContext->PSSetShader(g_pShadowPrePS, nullptr, 0);
-=======
-		g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
-		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-		g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-		g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
->>>>>>> parent of 289ce68... Depth Done
 		ID3D11Buffer* materialCB = g_PlaneObject.getMaterialConstantBuffer();
 		g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 		g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
@@ -2032,8 +1981,6 @@ void RenderDeferredShadowsOmni()
 
 		// Cube Render
 		cb.mWorld = XMMatrixTranspose(mGOCube);
-		cb.useNormals = 0;
-		cb.useParallax = 0;
 		g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 		stride = sizeof(SimpleVertex);
@@ -2042,39 +1989,26 @@ void RenderDeferredShadowsOmni()
 		g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 		g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
 
-		g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
 		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-
-		g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
 		materialCB = g_GameObject.getMaterialConstantBuffer();
+		g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 		g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-
 		g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
 		g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 
 		g_GameObject.draw(g_pImmediateContext);
 
-<<<<<<< HEAD
 		SetupLightForRenderPoint();
 	}
 
-=======
->>>>>>> parent of 289ce68... Depth Done
 	// G Buffer Pass
+
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(6, &g_pGbufferRenderTargetView[0], g_pDepthStencilView);
 
-	mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());
-	mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
-	view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
-	projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
+	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetView()));
 	cb.mWorld = XMMatrixTranspose(mGOPlane);
-	cb.mView = XMMatrixTranspose(view);
-	cb.mProjection = XMMatrixTranspose(projection);
-	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-	cb.useNormals = 1;
-	cb.useParallax = 1;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	// Plane Render
@@ -2099,9 +2033,6 @@ void RenderDeferredShadowsOmni()
 
 	// Cube Render
 	cb.mWorld = XMMatrixTranspose(mGOCube);
-	cb.defID = deferredID;
-	cb.useNormals = 1;
-	cb.useParallax = 1;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	stride = sizeof(SimpleVertex);
@@ -2148,6 +2079,7 @@ void RenderDeferredShadowsOmni()
 
 	// Quad Pass
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::Black);
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
@@ -2165,7 +2097,6 @@ void RenderDeferredShadowsOmni()
 
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
-<<<<<<< HEAD
 	for (int i = 0; i < 15; i++)
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
@@ -2361,12 +2292,4 @@ void RenderDeferredShadowsDirectional()
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
 	}
-=======
-	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(1, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(2, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(3, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(4, 1, shaderClear);
-	g_pImmediateContext->PSSetShaderResources(5, 1, shaderClear);
->>>>>>> parent of 289ce68... Depth Done
 }

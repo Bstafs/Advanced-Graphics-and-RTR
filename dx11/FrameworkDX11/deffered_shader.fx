@@ -315,11 +315,7 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     float parallaxHeight;
     
     int id = defID;
-<<<<<<< HEAD
     id = 4;
-=======
-    unsigned int useP = useParallax;
->>>>>>> parent of 289ce68... Depth Done
     float2 texCoords = IN.Tex;
     
     switch (id)
@@ -346,11 +342,9 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
             }
         case 4:
         {
-                texCoords = IN.Tex;
-                if (useP == 1)
-                {
-                    texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
-                }
+
+                texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+
                 break;
             }
         
@@ -360,26 +354,12 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
 	
-<<<<<<< HEAD
 	// Bump Mapping
     float4 bumpMap = txNormal.Sample(samLinear, texCoords);
     bumpMap = (bumpMap * 2.0f) - 1.0f;
     bumpMap = float4(normalize(bumpMap.xyz), 1);
     bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
-=======
-	// Mapping
-    float4 bumpMap = float4(IN.Tex, 0,0);
->>>>>>> parent of 289ce68... Depth Done
 
-    unsigned int useN = useNormals;
-    
-    if (useN == 1)
-    {
-        bumpMap = txNormal.Sample(samLinear, texCoords);
-        bumpMap = (bumpMap * 2.0f) - 1.0f;
-        bumpMap = float4(normalize(bumpMap.xyz), 1);
-        bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
-    }
     
     float4 texColor = { 1, 1, 1, 1 };
 
