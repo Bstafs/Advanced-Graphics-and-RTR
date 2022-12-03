@@ -1452,6 +1452,38 @@ void IMGUI()
 			renderID += 1;
 		}
 	}
+
+	if (ImGui::CollapsingHeader("Post-Processing"))
+	{
+		ImGui::Text("Reset Render To Texture");
+		if (ImGui::Button("Reset Render"))
+		{
+			updateID = 0;
+		}
+		ImGui::Text("Post-Processing Effects");
+		if (ImGui::Button("Original"))
+		{
+			SetPPShader(L"shaderQuad.fx");
+		}
+		if (ImGui::Button("Tint"))
+		{
+			SetPPShader(L"shaderQuadTint.fx");
+		}
+		if (ImGui::Button("Gaussian Blur"))
+		{
+			SetPPShader(L"shaderQuadGaussian.fx");
+		}
+		if (ImGui::Button("Bloom"))
+		{
+			SetPPShader(L"shaderQuadBloom.fx");
+		}
+		ImGui::Text("Render To Texture");
+		if (ImGui::Button("Render To Texture"))
+		{
+			updateID = 1;
+		}
+	}
+
 	if (ImGui::CollapsingHeader("Deferred Rendering"))
 	{
 		if (ImGui::Button("Render Deferred"))
@@ -1499,37 +1531,6 @@ void IMGUI()
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Post-Processing"))
-	{
-		ImGui::Text("Reset Render To Texture");
-		if (ImGui::Button("Reset Render"))
-		{
-			updateID = 0;
-		}
-		ImGui::Text("Post-Processing Effects");
-		if (ImGui::Button("Original"))
-		{
-			SetPPShader(L"shaderQuad.fx");
-		}
-		if (ImGui::Button("Tint"))
-		{
-			SetPPShader(L"shaderQuadTint.fx");
-		}
-		if (ImGui::Button("Gaussian Blur"))
-		{
-			SetPPShader(L"shaderQuadGaussian.fx");
-		}
-		if (ImGui::Button("Bloom"))
-		{
-			SetPPShader(L"shaderQuadBloom.fx");
-		}
-		ImGui::Text("Render To Texture");
-		if (ImGui::Button("Render To Texture"))
-		{
-			updateID = 1;
-		}
-	}
-
 	ImGui::End();
 
 	ImGui::Render();
@@ -1557,7 +1558,24 @@ void Render()
 
 	g_GameObject.update(t, g_pImmediateContext);
 
-	SetupLightForRenderPoint();
+	switch (lightTypeNumber)
+	{
+	case 0:
+	{
+		SetupLightForRenderDirectional();
+		break;
+	}
+	case 1:
+	{
+		SetupLightForRenderPoint();
+		break;
+	}
+	case 2:
+	{
+		SetupLightForRenderSpot();
+		break;
+	}
+	}
 
 	// get the game object world transform
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -1623,7 +1641,24 @@ void RenderToTarget()
 	// Update GameObject
 	g_GameObject.update(t, g_pImmediateContext);
 
-	SetupLightForRenderPoint();
+	switch (lightTypeNumber)
+	{
+	case 0:
+	{
+		SetupLightForRenderDirectional();
+		break;
+	}
+	case 1:
+	{
+		SetupLightForRenderPoint();
+		break;
+	}
+	case 2:
+	{
+		SetupLightForRenderSpot();
+		break;
+	}
+	}
 
 	// GameObjects Position
 	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
@@ -1950,14 +1985,31 @@ void RenderDeferredShadowsDirectional()
 
 	shadowCube = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
 
-	SetupLightForRenderDirectional(shadowCube);
+	switch (lightTypeNumber)
+	{
+	case 0:
+	{
+		SetupLightForRenderDirectional(shadowCube);
+		break;
+	}
+	case 1:
+	{
+		SetupLightForRenderPoint();
+		break;
+	}
+	case 2:
+	{
+		SetupLightForRenderSpot();
+		break;
+	}
+	}
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilShadowView);
 
 	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGOPlane);
 	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
-	cb.mProjection = XMMatrixTranspose(XMMatrixOrthographicLH(g_viewWidth, g_viewHeight, 0.01f, 100.0f));
+	cb.mProjection = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetProjection()));
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	// Plane Render

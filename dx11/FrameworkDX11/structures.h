@@ -57,8 +57,8 @@ struct _Material
 		, Specular(1.0f, 1.0f, 1.0f, 1.0f)
 		, SpecularPower(128.0f)
 		, UseTexture(false)
-		,  useNormals(false)
-	    ,  useParallax(false)
+		,  useNormals(true)
+	    ,  useParallax(true)
 	{}
 
 	DirectX::XMFLOAT4   Emissive;

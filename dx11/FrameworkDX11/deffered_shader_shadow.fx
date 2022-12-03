@@ -128,8 +128,6 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
     float distance = length(LightDirectionToVertex);
     LightDirectionToVertex = LightDirectionToVertex / distance;
     
-    LightDirectionToVertex = normalize(LightDirectionToVertex);
-    
     distance = length(vertexToLight);
     vertexToLight = vertexToLight / distance;
         
@@ -138,19 +136,21 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
 
 }
 
-float CalculateShadow(float4 lightSpace, float3 normal, float3 lightDir)
+float CalculateShadow(float4 lightSpace, float3 normal, float3 lightDir, float3 diffuse)
 {
-    float3 projectionCoords = lightSpace.xyz / lightSpace.w * 0.5 + 0.5;
+    float3 projectionCoords = lightSpace.xyz;
+    
+    projectionCoords = projectionCoords * 0.5 + 0.5;
     
     float closestDepth = txShadow.Sample(samLinear, projectionCoords.xy).r;
    
     float currentDepth = projectionCoords.z;
 
     float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
-    float shadow = currentDepth < closestDepth ? 0.0 : 1.0;
+    float shadow = currentDepth - bias < closestDepth ? 0.0 : 1.0;
     
-    //if (projectionCoords.z > 1.0)
-    //    shadow = 0.0;
+    if (projectionCoords.z > 1.0)
+        shadow = 0.0;
     
     return shadow;
 }
@@ -173,41 +173,52 @@ float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in flo
     lightDirection = normalize(lightDirection);
     
     float4 lightSpacePosition = mul(float4(position, 1.0), lightSpaceMatrix);
-    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight);
+    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight, diffuse);
 
     float3 finalDiffuse = DoDiffuse(normal, lightDirection, diffuse);
+    finalDiffuse = saturate(finalDiffuse);
     float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower);
     float3 finalSpecular = spec * diffuse;
+    finalSpecular = saturate(finalSpecular);
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
-    return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
+    return float4(emissive + finalAmbient + ((finalDiffuse + finalSpecular) * (1.0 - shadows)), 1.0);
 }
 
 float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
-{
+{    
+   float  distance = length(vertexToLight);
+   vertexToLight = vertexToLight / distance;
+    
    // Specular
     float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower) * attenuation;
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, LightDirectionToVertex, diffuse);
+    finalDiffuse = saturate(finalDiffuse);
     float3 finalSpecular = spec * diffuse;
+    finalSpecular = saturate(finalSpecular);
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
-    return float4(emissive + (finalAmbient) * ((finalDiffuse + finalSpecular)), 1.0);
+    return float4(emissive + (finalAmbient) + ((finalDiffuse + finalSpecular)), 1.0);
 }
 
-float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex)
+float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
 {
     float spotIntensity = DoSpotCone(Lights[0], vertexToLight);
+    
+    float4 lightSpacePosition = mul(float4(position, 1.0), lightSpaceMatrix);
+    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight, diffuse);
     
      // Specular
     float4 spec = DoSpecular(Lights[0], vertexToEye, -LightDirectionToVertex, normal, specularPower) * attenuation * spotIntensity;
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight, diffuse) * attenuation * spotIntensity;
+    finalDiffuse = saturate(finalDiffuse);
     float3 finalSpecular = spec * diffuse;
+    finalSpecular = saturate(finalSpecular);
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
-    return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0);
-  
+    return float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0) ;
 }
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -259,7 +270,7 @@ float4 PS(PS_INPUT input) : SV_Target
             }
         case 2:
         {
-                finalColor = DoSpotLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex);
+                finalColor = DoSpotLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex, position);
                 break;
             }
     }
