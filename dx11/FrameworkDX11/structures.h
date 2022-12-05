@@ -151,5 +151,5 @@ struct LightPropertiesConstantBuffer
 	//----------------------------------- (16 byte boundary)
 	Light               Lights[MAX_LIGHTS]; // 80 * 8 bytes
 
-	DirectX::XMMATRIX lightSpaceMatricee[6];
+	DirectX::XMMATRIX lightSpaceMatrices;
 };  // Total:                                  672 bytes (42 * 16)

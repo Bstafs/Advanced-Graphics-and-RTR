@@ -15,14 +15,7 @@ Texture2D txEmissive : register(t5);
 
 Texture2D txShadow : register(t6);
 
-SamplerState samLinear : register(s0)
-{
-    Filter = ANISOTROPIC;
-    MaxAnisotropy = 4;
-
-    AddressU = WRAP;
-    AddressV = WRAP;
-};
+SamplerState cmpSampler : register(s0);
 
 #define MAX_LIGHTS 1
 // Light types.
@@ -71,6 +64,7 @@ struct PS_INPUT
 {
     float4 Pos : SV_POSITION;
     float2 Tex : TEXCOORD0;
+    float4 LSM : lightSpaceMatrix;
 };
 
 void GetGBufferAttributes(in float2 screenPos, out float3 normal, out float3 diffuse, out float3 specular, out float3 position, out float3 ambient, out float3 emissive, out float specularPower)
@@ -136,22 +130,36 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
 
 }
 
-float CalculateShadow(float4 lightSpace, float3 normal, float3 lightDir, float3 diffuse)
+float CalculateShadow(float4 lightSpace, float3 ambient)
 {
-    float3 projectionCoords = lightSpace.xyz;
+    //lightSpace.xyz /= lightSpace.w;
     
-    projectionCoords = projectionCoords * 0.5 + 0.5;
+    //lightSpace.x = lightSpace.x / 2 + 0.5;
+    //lightSpace.y = lightSpace.y / -2 + 0.5;
     
-    float closestDepth = txShadow.Sample(samLinear, projectionCoords.xy).r;
+    //float bias = 0.001;
+    
+    //lightSpace.z -= bias;
    
-    float currentDepth = projectionCoords.z;
+    //float closestDepth = txShadow.Sample(cmpSampler, lightSpace.xy).r;
+    
+    //float currentDepth = lightSpace.z;
+    
+    //float shadowFactor = currentDepth < closestDepth ? 1.0 : 0.0;
+    
+    //return shadowFactor;
+    
+    // perform perspective divide
+    float3 projCoords = lightSpace.xyz / lightSpace.w;
+    // transform to [0,1] range
+    projCoords = projCoords * 0.5 + 0.5;
+    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+    float closestDepth = txShadow.Sample(cmpSampler, projCoords.xy).r;
+    // get depth of current fragment from light's perspective
+    float currentDepth = projCoords.z;
+    // check whether current frag pos is in shadow
+    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
 
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
-    float shadow = currentDepth - bias < closestDepth ? 0.0 : 1.0;
-    
-    if (projectionCoords.z > 1.0)
-        shadow = 0.0;
-    
     return shadow;
 }
 
@@ -166,23 +174,24 @@ float DoSpotCone(Light light, float3 vertexToLight)
     return smoothstep(minCos, maxCos, cosAngle);
 }
 
-float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
+float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position, in float4 LSM)
 {
-    float3 lightDirection = Lights[0].Direction.xyz;
-   
-    lightDirection = normalize(lightDirection);
+    float3 lightDirection = -Lights[0].Direction.xyz;
     
-    float4 lightSpacePosition = mul(float4(position, 1.0), lightSpaceMatrix);
-    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight, diffuse);
+    //float4 lightSpacePosition = mul(float4(-position, 1.0), LSM);
+    float shadows = CalculateShadow(LSM, ambient);
 
     float3 finalDiffuse = DoDiffuse(normal, lightDirection, diffuse);
     finalDiffuse = saturate(finalDiffuse);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, specularPower);
     float3 finalSpecular = spec * diffuse;
     finalSpecular = saturate(finalSpecular);
     float3 finalAmbient = (ambient * GlobalAmbient) * diffuse;
     
-    return float4(emissive + finalAmbient + ((finalDiffuse + finalSpecular) * (1.0 - shadows)), 1.0);
+    float4 finalColor = float4(emissive + (finalAmbient) + ((finalDiffuse + finalSpecular)), 1.0);
+  
+    
+    return finalColor;
 }
 
 float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
@@ -207,7 +216,7 @@ float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 nor
     float spotIntensity = DoSpotCone(Lights[0], vertexToLight);
     
     float4 lightSpacePosition = mul(float4(position, 1.0), lightSpaceMatrix);
-    float shadows = CalculateShadow(lightSpacePosition, normal, vertexToLight, diffuse);
+    float shadows = CalculateShadow(lightSpacePosition, ambient);
     
      // Specular
     float4 spec = DoSpecular(Lights[0], vertexToEye, -LightDirectionToVertex, normal, specularPower) * attenuation * spotIntensity;
@@ -227,6 +236,7 @@ PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
     output.Pos = input.Pos;
+    
     output.Tex = input.Tex;
     return output;
 }
@@ -250,17 +260,21 @@ float4 PS(PS_INPUT input) : SV_Target
     
     GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower);
     
+        
+    float4 LSM = mul(position, lightSpaceMatrix);
+
+    
     CreateLightPositions(vertexToEye, vertexToLight, attenuation, LightDirectionToVertex, position);
     
     float4 finalColor;
-   
+    
     int lightNumber = Lights[0].LightType;
     
     switch (lightNumber)
     {
         case 0:
         {
-                finalColor = DoDirecitonalLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex, position);
+                finalColor = DoDirecitonalLight(vertexToEye, vertexToLight, normal, specularPower, attenuation, diffuse, ambient, emissive, LightDirectionToVertex, position, LSM);
                 break;
             }
         case 1:

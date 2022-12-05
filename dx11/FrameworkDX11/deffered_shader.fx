@@ -290,6 +290,8 @@ PS_INPUT VS(VS_INPUT input)
     float3 vertexToEye = worldPos.xyz - EyePosition.xyz;
     //float3 vertexToLight = worldPos.xyz - Lights[0].Position.xyz;
 
+    
+    
 	// TBN Matrix
     float3 T = normalize(mul(input.Tang, World));
     float3 B = normalize(mul(input.BiNorm, World));
@@ -368,6 +370,7 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     output.Normal = bumpMap;
     output.Position = IN.worldPos;
 
+    
     if (Material.UseTexture)
     {
         texColor = txDiffuse.Sample(samLinear, texCoords);
