@@ -49,6 +49,9 @@
     <FxCompile Include="shaderQuadTint.fx">
       <Filter>PostProcessing</Filter>
     </FxCompile>
+    <FxCompile Include="shaderQuadDoF.fx">
+      <Filter>PostProcessing</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImGui\imgui.cpp">

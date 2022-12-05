@@ -54,27 +54,17 @@ QuadVS_Output QuadVS(QuadVS_Input Input)
 
 float4 MotionBlur(float2 texCoords)
 {
-    float numSamples = 15;
-    float zOverW = txDiffuse.Sample(motionBlur, texCoords);
-    float4 H = float4(texCoords.x * 2 - 1, (1 - texCoords.y) * 2 - 1, zOverW, 1);
-    float4 D = mul(H, InverseProjection);
-    float4 worldPos = D / D.w;
-    float4 currentPos = H;
-    float4 prevPos = mul(worldPos, PreviousProjection);
-    prevPos /= prevPos.w;
-    float2 velocity = (currentPos - prevPos) / 2.0f;
-
-    float4 colour = txDiffuse.Sample(motionBlur, texCoords);
-    texCoords += velocity;
+    float2 motion = txDiffuse.Sample(motionBlur, texCoords).xy / 2.0;
+    float4 color = 0;
     
-    for (int i = 1; i < numSamples; ++i, texCoords += velocity)
-    {
-        float4 currentColour = txDiffuse.Sample(motionBlur, texCoords);
-        
-        colour += currentColour;
-    }
-
-    return colour / numSamples;
+    color += txDiffuse.Sample(motionBlur, texCoords) * 0.4;
+    texCoords -= motion;
+    color += txDiffuse.Sample(motionBlur, texCoords) * 0.3;
+    texCoords -= motion;
+    color += txDiffuse.Sample(motionBlur, texCoords) * 0.2;
+    texCoords -= motion;
+    color += txDiffuse.Sample(motionBlur, texCoords) * 0.1;
+    return color;
 }
 
 //--------------------------------------------------------------------------------------
