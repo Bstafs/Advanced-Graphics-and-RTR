@@ -113,11 +113,10 @@ struct PS_INPUT
     float2 Tex : TEXCOORD0;
 
     float3 eyeVectorTS : EYEVECTORTS;
-    float3 lightVectorTS : LIGHTVECTORTS;
     float3 PosTS : POSTS;
     float3 eyePosTS : EYEPOSTS;
-    float3 normTS : NORMTS;
     float3x3 TBN : TBN;
+    //
 };
 
 struct PS_OUTPUT
@@ -287,11 +286,9 @@ PS_INPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, Projection);
     output.Tex = input.Tex;
     output.Norm = input.Norm;
+    
     float3 vertexToEye = worldPos.xyz - EyePosition.xyz;
-    //float3 vertexToLight = worldPos.xyz - Lights[0].Position.xyz;
 
-    
-    
 	// TBN Matrix
     float3 T = normalize(mul(input.Tang, World));
     float3 B = normalize(mul(input.BiNorm, World));

@@ -515,10 +515,10 @@ HRESULT InitDevice()
 		return hr;
 
 
-		hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencilShadow);
-		if (FAILED(hr))
-			return hr;
-	
+	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencilShadow);
+	if (FAILED(hr))
+		return hr;
+
 
 	//Texture Render
 	D3D11_TEXTURE2D_DESC textureDesc;
@@ -651,21 +651,21 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-		hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilShadow, &descDSV, &g_pDepthStencilShadowView);
-		if (FAILED(hr))
-			return hr;
-	
+	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencilShadow, &descDSV, &g_pDepthStencilShadowView);
+	if (FAILED(hr))
+		return hr;
+
 
 
 	shaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 
 
 
-		hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow, &shaderResourceViewDesc, &g_pShadowShaderResourceView);
-		g_pDepthStencilShadow->Release();
-		if (FAILED(hr))
-			return hr;
-	
+	hr = g_pd3dDevice->CreateShaderResourceView(g_pDepthStencilShadow, &shaderResourceViewDesc, &g_pShadowShaderResourceView);
+	g_pDepthStencilShadow->Release();
+	if (FAILED(hr))
+		return hr;
+
 
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
@@ -1041,15 +1041,15 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_PlaneObject.m_positionPlane = XMFLOAT3(0.0f, -1.0f, 0.0f);
 
 	g_Lighting.Position.x = 0.0f;
-	g_Lighting.Position.y = 0.0f;
-	g_Lighting.Position.z = -3.0f;
+	g_Lighting.Position.y = 5.0f;
+	g_Lighting.Position.z = 0.0f;
 
 	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 100.0f);
 	g_pCurrentCamera = g_pCamera0;
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
 
-	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+	XMVECTOR LightDirection = XMVectorSet(0.0f, 0.750f, 1.0f, 0.0f);
 	LightDirection = XMVector3Normalize(LightDirection);
 	XMStoreFloat4(&g_Lighting.Direction, LightDirection);
 
@@ -1908,8 +1908,8 @@ void RenderToTargetDoF()
 	cbm.vOutputColor = cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pMotionBlurBuffer, 0, nullptr, &cbv, 0, 0);
 
-	 stride = sizeof(SimpleVertex);
-	 offset = 0;
+	stride = sizeof(SimpleVertex);
+	offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
@@ -1919,7 +1919,7 @@ void RenderToTargetDoF()
 
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
 	g_pImmediateContext->PSSetSamplers(1, 2, g_GameObject.getTextureSamplerState());
-    materialCB = g_GameObject.getMaterialConstantBuffer();
+	materialCB = g_GameObject.getMaterialConstantBuffer();
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
@@ -2173,19 +2173,14 @@ void RenderDeferredShadowsDirectional()
 	g_pImmediateContext->UpdateSubresource(g_pLightConstantBuffer, 0, nullptr, &lightProperties, 0, 0);
 
 	XMFLOAT4X4 lightViewMatrix;
-	XMVECTOR EyeDirection = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
-	XMVECTOR AtDirection = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0);
-	XMVECTOR UpDirection = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(EyeDirection, AtDirection, UpDirection));
+	XMFLOAT4 EyePosition = { g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f };
+	XMFLOAT4 EyeDirection = { g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f };
+	XMFLOAT4 UpDirection = { 0.0f, 1.0f, 0.0f, 0.0f };
+	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookAtLH(XMLoadFloat4(&EyePosition), XMLoadFloat4(&EyeDirection), XMLoadFloat4(&UpDirection)));
 
-   // XMMATRIX orthoProj  = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetOrthoProj()));
+	XMMATRIX Proj = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
-    XMMATRIX orthoProj  = XMMatrixTranspose(XMMatrixOrthographicLH(1280, 720, 0.01, 100));
-
-
-    XMMATRIX Proj  = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetProjection()));
-
-	shadowCube = XMMatrixTranspose(XMMatrixMultiply(XMLoadFloat4x4(&lightViewMatrix), orthoProj));
+	shadowCube = XMMatrixMultiply(XMMatrixTranspose(Proj), XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix)));
 
 	switch (lightTypeNumber)
 	{
@@ -2210,8 +2205,8 @@ void RenderDeferredShadowsDirectional()
 
 	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGOPlane);
-	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
-	cb.mProjection = XMMatrixTranspose(orthoProj);
+	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetView()));
+	cb.mProjection = XMMatrixTranspose(Proj);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	// Plane Render
@@ -2348,7 +2343,7 @@ void RenderDeferredShadowsDirectional()
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[0]);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	IMGUI();
