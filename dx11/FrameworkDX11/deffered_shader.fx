@@ -57,9 +57,11 @@ struct _Material
 	//----------------------------------- (16 byte boundary)
     float SpecularPower; // 4 bytes
     bool UseTexture; // 4 bytes
-    float2 Padding; // 8 bytes
-	//----------------------------------- (16 byte boundary)
-    float4 Depth;
+    bool useNormals; // 4 bytes
+    bool useParallax; // 4 bytes
+   	//----------------------------------- (16 byte boundary) 
+
+     
 }; // Total:               // 80 bytes ( 5 * 16 )
 
 cbuffer MaterialProperties : register(b1)
@@ -315,50 +317,55 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
     
     int id = defID;
     float2 texCoords = IN.Tex;
-    
-    switch (id)
+    if (Material.useParallax)
     {
-        case 0:
+        switch (id)
         {
-                texCoords = IN.Tex; // Normal Mapping
-                break;
-            }
-        case 1:
+            case 0:
         {
-                texCoords = ParallaxMapping(IN.Tex, IN.eyeVectorTS); // Simple Parallax Mapping
-                break;
-            }
-        case 2:
+                    texCoords = IN.Tex; // Normal Mapping
+                    break;
+                }
+            case 1:
         {
-                texCoords = ParallaxSteepMapping(IN.Tex, IN.eyeVectorTS);
-                break;
-            }
-        case 3:
+                    texCoords = ParallaxMapping(IN.Tex, IN.eyeVectorTS); // Simple Parallax Mapping
+                    break;
+                }
+            case 2:
         {
-                texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
-                break;
-            }
-        case 4:
+                    texCoords = ParallaxSteepMapping(IN.Tex, IN.eyeVectorTS);
+                    break;
+                }
+            case 3:
+        {
+                    texCoords = ParallaxReliefMapping(IN.Tex, IN.eyeVectorTS);
+                    break;
+                }
+            case 4:
         {
 
-                texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
+                    texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
 
-                break;
-            }
+                    break;
+                }
         
         
+        }
     }
     
     if (texCoords.x > 1.0 || texCoords.y > 1.0 || texCoords.x < 0.0 || texCoords.y < 0.0)
         discard;
 	
 	// Bump Mapping
-    float4 bumpMap = txNormal.Sample(samLinear, texCoords);
-    bumpMap = (bumpMap * 2.0f) - 1.0f;
-    bumpMap = float4(normalize(bumpMap.xyz), 1);
-    bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
+    float4 bumpMap = float4(IN.Norm, 1);
+    if (Material.useNormals)
+    {
+        bumpMap = txNormal.Sample(samLinear, texCoords);
+        bumpMap = (bumpMap * 2.0f) - 1.0f;
+        bumpMap = float4(normalize(bumpMap.xyz), 1);
+        bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
+    }
 
-    
     float4 texColor = { 1, 1, 1, 1 };
 
     output.Emissive = Material.Emissive;

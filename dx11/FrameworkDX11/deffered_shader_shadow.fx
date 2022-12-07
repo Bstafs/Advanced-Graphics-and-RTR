@@ -195,7 +195,7 @@ float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 nor
     float shadows = CalculateShadow(lightSpacePosition, ambient);
     
      // Specular
-    float4 spec = DoSpecular(Lights[0], vertexToEye, -LightDirectionToVertex, normal, specularPower) * attenuation * spotIntensity;
+    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, specularPower) * attenuation * spotIntensity;
    // Diffuse
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight) * attenuation * spotIntensity;
     finalDiffuse = saturate(finalDiffuse);

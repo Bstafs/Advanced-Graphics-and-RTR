@@ -57,8 +57,8 @@ struct _Material
 		, Specular(1.0f, 1.0f, 1.0f, 1.0f)
 		, SpecularPower(128.0f)
 		, UseTexture(false)
-		,  useNormals(true)
-	    ,  useParallax(true)
+		, useNormals(false)
+		, useParallax(false)
 	{}
 
 	DirectX::XMFLOAT4   Emissive;
@@ -69,12 +69,12 @@ struct _Material
 	//----------------------------------- (16 byte boundary)
 	DirectX::XMFLOAT4   Specular;
 	//----------------------------------- (16 byte boundary)
-	float               SpecularPower;
-	// Add some padding complete the 16 byte boundary.
-	int                 UseTexture;
-	// Add some padding to complete the 16 byte boundary.
-	int useNormals;
-	int useParallax; 
+	float SpecularPower; // 4 Bytes
+	int  UseTexture; // 4 Bytes
+	int useNormals;// 4 Bytes
+	int useParallax;// 4 Bytes
+		//----------------------------------- (16 byte boundary)
+		// 
 	//----------------------------------- (16 byte boundary)
 }; // Total:                                80 bytes (5 * 16)
 
@@ -106,10 +106,10 @@ struct Light
 		, Enabled(0)
 	{}
 
-	Light(DirectX::XMFLOAT4 position , DirectX::XMFLOAT4 direction , DirectX::XMFLOAT4 colour ,
-		 float spot_angle , float constant_attenuation , float linear_attenuation , 
-		 float quadratic_attenuation , int light_type , int enabled)
-		: Position(position.x , position.y , position.z , position.w)
+	Light(DirectX::XMFLOAT4 position, DirectX::XMFLOAT4 direction, DirectX::XMFLOAT4 colour,
+		float spot_angle, float constant_attenuation, float linear_attenuation,
+		float quadratic_attenuation, int light_type, int enabled)
+		: Position(position.x, position.y, position.z, position.w)
 		, Direction(direction.x, direction.y, direction.z, direction.w)
 		, Color(colour.x, colour.y, colour.z, colour.z)
 		, SpotAngle(spot_angle)

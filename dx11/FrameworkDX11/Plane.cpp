@@ -114,6 +114,14 @@ HRESULT Plane::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pContext)
 	if (FAILED(hr))
 		return hr;
 
+	//hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\normals.dds", nullptr, &m_pNormalResourceView);
+	//if (FAILED(hr))
+	//	return hr;
+
+	//hr = CreateDDSTextureFromFile(pd3dDevice, L"Resources\\displacement.dds", nullptr, &m_pParraResourceView);
+	//if (FAILED(hr))
+	//	return hr;
+
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory(&sampDesc, sizeof(sampDesc));
 	sampDesc.Filter = D3D11_FILTER_ANISOTROPIC;
@@ -129,6 +137,9 @@ HRESULT Plane::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pContext)
 	m_material.Material.Specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	m_material.Material.SpecularPower = 32.0f;
 	m_material.Material.UseTexture = true;
+	m_material.Material.useNormals = false;
+	m_material.Material.useParallax = false;
+
 
 	// Create the material constant buffer
 	bd.Usage = D3D11_USAGE_DEFAULT;

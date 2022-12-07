@@ -385,6 +385,8 @@ HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceConte
 	m_material.Material.Specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	m_material.Material.SpecularPower = 32.0f;
 	m_material.Material.UseTexture = true;
+	m_material.Material.useNormals = true;
+	m_material.Material.useParallax = true;
 
 	// Create the material constant buffer
 	bd.Usage = D3D11_USAGE_DEFAULT;

@@ -1378,9 +1378,9 @@ void IMGUI()
 		ImGui::DragFloat("Light Position Z", &g_Lighting.Position.z, 0.05f, -100.0f, 100.0f);
 
 		ImGui::Text("Directions");
-		ImGui::DragFloat("Light Direction X", &g_Lighting.Direction.x, 0.05f, -10.0f, 10.0f);
-		ImGui::DragFloat("Light Direction Y", &g_Lighting.Direction.y, 0.05f, -10.0, 10.0f);
-		ImGui::DragFloat("Light Direction Z", &g_Lighting.Direction.z, 0.05f, -10.0f, 10.0f);
+		ImGui::DragFloat("Light Direction X", &g_Lighting.Direction.x, 0.05f, -1.0f, 1.0f);
+		ImGui::DragFloat("Light Direction Y", &g_Lighting.Direction.y, 0.05f, -1.0, 1.0f);
+		ImGui::DragFloat("Light Direction Z", &g_Lighting.Direction.z, 0.05f, -1.0f, 1.0f);
 		ImGui::Text("Light Types");
 		if (ImGui::Button("Directional"))
 		{
@@ -2147,8 +2147,6 @@ void RenderDeferredShadowsDirectional()
 		deferredID = 0;
 	}
 
-	g_Lighting.Position.z = 0.0f;
-
 	XMMATRIX mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
 	XMMATRIX shadowCube;
@@ -2343,7 +2341,8 @@ void RenderDeferredShadowsDirectional()
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
 
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[0]);
+	//g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceView[0]);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGbufferShaderResourceLightingView);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
 	IMGUI();
