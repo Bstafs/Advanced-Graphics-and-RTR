@@ -2203,7 +2203,7 @@ void RenderDeferredShadowsDirectional()
 
 	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGOPlane);
-	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetView()));
+	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
 	cb.mProjection = XMMatrixTranspose(Proj);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
@@ -2327,8 +2327,8 @@ void RenderDeferredShadowsDirectional()
 	g_pImmediateContext->PSSetShader(g_pShadowPS, nullptr, 0);
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	g_pImmediateContext->PSSetSamplers(1, 1, g_PlaneObject.getTextureSamplerState());
-	g_pImmediateContext->PSSetSamplers(1, 1, g_GameObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetSamplers(0, 1, g_PlaneObject.getTextureSamplerState());
+	g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
 	g_pImmediateContext->PSSetShaderResources(0, 6, &g_pGbufferShaderResourceView[0]);
 	g_pImmediateContext->PSSetShaderResources(6, 1, &g_pShadowShaderResourceView);
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
