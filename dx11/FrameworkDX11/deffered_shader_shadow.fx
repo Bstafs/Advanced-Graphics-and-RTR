@@ -157,15 +157,15 @@ float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in flo
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
-    float4 finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0f) * float4(diffuse, 1.0f) * shadows;
+    float4 finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0f) * float4(diffuse, 1.0f) * (1.0f - shadows);
   
     return finalColor;
 }
 
 float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
-{    
-   float  distance = length(vertexToLight);
-   vertexToLight = vertexToLight / distance;
+{
+    float distance = length(vertexToLight);
+    vertexToLight = vertexToLight / distance;
     
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight);
     float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, 32.0f);

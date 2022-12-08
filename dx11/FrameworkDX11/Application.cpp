@@ -1041,7 +1041,7 @@ HRESULT		InitWorld(int width, int height, HWND hwnd)
 	g_PlaneObject.m_positionPlane = XMFLOAT3(0.0f, -1.0f, 0.0f);
 
 	g_Lighting.Position.x = 0.0f;
-	g_Lighting.Position.y = 5.0f;
+	g_Lighting.Position.y = -5.0f;
 	g_Lighting.Position.z = 0.0f;
 
 	g_pCamera0 = new Camera(XMFLOAT3(0.0f, 0.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), g_viewWidth, g_viewHeight, 0.01f, 100.0f);
@@ -2177,8 +2177,10 @@ void RenderDeferredShadowsDirectional()
 	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookAtLH(XMLoadFloat4(&EyePosition), XMLoadFloat4(&EyeDirection), XMLoadFloat4(&UpDirection)));
 
 	XMMATRIX Proj = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+	XMMATRIX ProjOrtho = XMMatrixOrthographicLH(1280.0f, 720.0f, 0.01f, 100.0f);
 
-	shadowCube = XMMatrixMultiply(XMMatrixTranspose(Proj), XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix)));
+
+	shadowCube = XMMatrixMultiply(XMMatrixTranspose(ProjOrtho), XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix)));
 
 	switch (lightTypeNumber)
 	{
@@ -2204,7 +2206,7 @@ void RenderDeferredShadowsDirectional()
 	ConstantBuffer cb;
 	cb.mWorld = XMMatrixTranspose(mGOPlane);
 	cb.mView = XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix));
-	cb.mProjection = XMMatrixTranspose(Proj);
+	cb.mProjection = XMMatrixTranspose(ProjOrtho);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	// Plane Render
