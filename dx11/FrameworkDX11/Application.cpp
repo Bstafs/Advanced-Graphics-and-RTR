@@ -239,8 +239,7 @@ void UpdateFunctions()
 	}
 	case 1:
 	{
-		//RenderToTarget();
-		RenderToTargetDoF();
+		RenderToTarget();
 		break;
 	}
 	case 2:
@@ -250,7 +249,6 @@ void UpdateFunctions()
 	}
 	case 3:
 	{
-		//RenderDeferredShadowsOmni();
 		RenderDeferredShadowsDirectional();
 		break;
 	}
@@ -1736,9 +1734,6 @@ void RenderToTarget()
 	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
 	// Constant Pixel Buffer
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	// Blur Buffer
-	//g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
-	//g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
 	// Shader Pixel Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
 
@@ -2197,7 +2192,6 @@ void RenderDeferredShadowsDirectional()
 
 	XMMATRIX Proj = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 	XMMATRIX ProjOrtho = XMMatrixOrthographicLH(1280.0f, 720.0f, 0.01f, 100.0f);
-
 
 	shadowCube = XMMatrixMultiply(XMMatrixTranspose(ProjOrtho), XMMatrixTranspose(XMLoadFloat4x4(&lightViewMatrix)));
 

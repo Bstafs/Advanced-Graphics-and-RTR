@@ -211,7 +211,7 @@ float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 nor
     float spotIntensity = DoSpotCone(Lights[0], vertexToLight);
     
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight) * attenuation * spotIntensity;
-    float4 spec = DoSpecular(Lights[0], vertexToEye, vertexToLight, normal, 32) * attenuation * spotIntensity;
+    float4 spec = DoSpecular(Lights[0], vertexToEye, vertexToLight, normal, 32.0f) * attenuation * spotIntensity;
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     

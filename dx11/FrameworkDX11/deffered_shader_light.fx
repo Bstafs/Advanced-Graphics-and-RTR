@@ -13,8 +13,6 @@ Texture2D txPosition : register(t3);
 Texture2D txAmbient : register(t4);
 Texture2D txEmissive : register(t5);
 
-Texture2D txShadow : register(t6);
-
 SamplerState cmpSampler : register(s0);
 
 #define MAX_LIGHTS 1
@@ -38,7 +36,8 @@ struct Light
 	//----------------------------------- (16 byte boundary)
     int LightType; // 4 bytes
     bool Enabled; // 4 bytes
-    int2 Padding; // 8 bytes
+    int LinearDepth;
+    int padding09;
 	//----------------------------------- (16 byte boundary)
 }; // Total:                           // 80 bytes (5 * 16)
 
@@ -64,7 +63,6 @@ struct PS_INPUT
 {
     float4 Pos : SV_POSITION;
     float2 Tex : TEXCOORD0;
-    float4 LSM : lightSpaceMatrix;
 };
 
 
@@ -101,9 +99,7 @@ float3 DoDiffuse(float3 normal, float3 vertexToLight)
 {
     float lightAmount = saturate(dot(normal, vertexToLight));
     float3 color = Lights[0].Color * lightAmount;
-    float3 finalDiffuse = color;
-    
-    return finalDiffuse;
+    return color;
 }
 
 void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out float attenuation, out float3 LightDirectionToVertex, in float3 position)
@@ -139,9 +135,11 @@ float DoSpotCone(Light light, float3 vertexToLight)
 float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position)
 {
     float3 lightDirection = -Lights[0].Direction.xyz;
+    
+    lightDirection = normalize(lightDirection);
 
     float3 finalDiffuse = DoDiffuse(normal, lightDirection);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, 32);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, 32.0f);
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
@@ -156,7 +154,7 @@ float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 no
     vertexToLight = vertexToLight / distance;
     
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, 32);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, 32.0f);
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
@@ -170,7 +168,7 @@ float4 DoSpotLight(in float3 vertexToEye, in float3 vertexToLight, in float3 nor
     float spotIntensity = DoSpotCone(Lights[0], vertexToLight);
     
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight) * attenuation * spotIntensity;
-    float4 spec = DoSpecular(Lights[0], vertexToEye, vertexToLight, normal, 32) * attenuation * spotIntensity;
+    float4 spec = DoSpecular(Lights[0], vertexToEye, vertexToLight, normal, 32.0f) * attenuation * spotIntensity;
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
@@ -185,6 +183,7 @@ PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
     output.Pos = input.Pos;
+    
     output.Tex = input.Tex;
     return output;
 }
