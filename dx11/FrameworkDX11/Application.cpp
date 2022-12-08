@@ -1818,7 +1818,7 @@ void RenderToTargetDoF()
 
 	XMFLOAT4X4 lightViewMatrix;
 	XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
-	XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0);
+	XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f);
 	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
 

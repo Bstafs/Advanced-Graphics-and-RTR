@@ -101,9 +101,7 @@ float3 DoDiffuse(float3 normal, float3 vertexToLight)
 {
     float lightAmount = saturate(dot(normal, vertexToLight));
     float3 color = Lights[0].Color * lightAmount;
-    float3 finalDiffuse = color;
-    
-    return finalDiffuse;
+    return color;
 }
 
 void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out float attenuation, out float3 LightDirectionToVertex, in float3 position)
@@ -132,7 +130,6 @@ float CalculateShadow(float4 lightSpace)
     float closestDepth = txShadow.Sample(cmpSampler, projCoords.xy).r;
     float currentDepth = projCoords.z;
     float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
-
     return shadow;
 }
 
@@ -150,11 +147,13 @@ float DoSpotCone(Light light, float3 vertexToLight)
 float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in float3 normal, in float specularPower, in float attenuation, in float3 diffuse, in float3 ambient, in float3 emissive, in float3 LightDirectionToVertex, in float3 position, in float4 LSM)
 {
     float3 lightDirection = -Lights[0].Direction.xyz;
+    
+    lightDirection = normalize(lightDirection);
    
     float shadows = CalculateShadow(LSM);
 
     float3 finalDiffuse = DoDiffuse(normal, lightDirection);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, 32);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, 32.0f);
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
@@ -169,7 +168,7 @@ float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 no
    vertexToLight = vertexToLight / distance;
     
     float3 finalDiffuse = DoDiffuse(normal, vertexToLight);
-    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, 32);
+    float4 spec = DoSpecular(Lights[0], vertexToEye, LightDirectionToVertex, normal, 32.0f);
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
@@ -221,11 +220,9 @@ float4 PS(PS_INPUT input) : SV_Target
     float attenuation;
     
     GetGBufferAttributes(input.Pos.xy, normal, diffuse, specular, position, ambient, emissive, specularPower);
-    
-        
-    float4 LSM = mul(position, lightSpaceMatrix);
+     
+    float4 LSM = mul(float4(position, 1.0f), lightSpaceMatrix);
 
-    
     CreateLightPositions(vertexToEye, vertexToLight, attenuation, LightDirectionToVertex, position);
     
     float4 finalColor;

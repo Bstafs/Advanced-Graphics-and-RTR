@@ -30,6 +30,9 @@ public:
 	XMFLOAT4X4* GetProjection() { return &_projection; }
 	void SetProjection();
 
+	XMFLOAT4X4* GetOrthoProjection() { return &_projectionOrtho; }
+	void SetOrthoProjection();
+
 
 	void Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth);
 
@@ -45,5 +48,6 @@ private:
 
 	XMFLOAT4X4 _view;
 	XMFLOAT4X4 _projection;
+	XMFLOAT4X4 _projectionOrtho;
 };
 

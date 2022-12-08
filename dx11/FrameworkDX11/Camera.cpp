@@ -37,6 +37,11 @@ void Camera::SetProjection()
 	XMStoreFloat4x4(&_projection, XMMatrixPerspectiveFovLH(XM_PIDIV2, (FLOAT)_windowWidth / (FLOAT)_windowHeight, _nearDepth, _farDepth));
 }
 
+void Camera::SetOrthoProjection()
+{
+	XMStoreFloat4x4(&_projectionOrtho, XMMatrixOrthographicLH(_windowWidth, _windowHeight, _nearDepth, _farDepth));
+}
+
 void Camera::Reshape(FLOAT windowWidth, FLOAT windowHeight, FLOAT nearDepth, FLOAT farDepth)
 {
 	_windowHeight = windowHeight;

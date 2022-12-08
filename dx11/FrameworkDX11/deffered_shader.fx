@@ -363,7 +363,7 @@ PS_OUTPUT PS(PS_INPUT IN) : SV_TARGET
         bumpMap = txNormal.Sample(samLinear, texCoords);
         bumpMap = (bumpMap * 2.0f) - 1.0f;
         bumpMap = float4(normalize(bumpMap.xyz), 1);
-        bumpMap = float4(mul(bumpMap, IN.TBN), 1.0f);
+        bumpMap = float4(mul(bumpMap.xyz, IN.TBN), 1.0f);
     }
 
     float4 texColor = { 1, 1, 1, 1 };
