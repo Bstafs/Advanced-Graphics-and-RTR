@@ -104,6 +104,7 @@ struct Light
 		, QuadraticAttenuation(0.0f)
 		, LightType(DirectionalLight)
 		, Enabled(0)
+		, LinearDepth(0)
 	{}
 
 	Light(DirectX::XMFLOAT4 position, DirectX::XMFLOAT4 direction, DirectX::XMFLOAT4 colour,
@@ -132,8 +133,8 @@ struct Light
 	//----------------------------------- (16 byte boundary)
 	int         LightType;
 	int         Enabled;
-	// Add some padding to make this struct size a multiple of 16 bytes.
-	int         Padding[2];
+	int LinearDepth;
+	int padding09;
 	//----------------------------------- (16 byte boundary)
 };  // Total:                              80 bytes ( 5 * 16 )
 

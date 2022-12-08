@@ -190,6 +190,7 @@ const char* renderLabelNames;
 unsigned int updateID = 0;
 
 unsigned int lightTypeNumber = 0;
+unsigned int lightDepthNumber = 0;
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -1539,6 +1540,15 @@ void IMGUI()
 		{
 			updateID = 3;
 		}
+		if (ImGui::Button("Shadow Mapping - Non-Linear"))
+		{
+			lightDepthNumber = 1;
+		}
+		if (ImGui::Button("Shadow Mapping - Linear"))
+		{
+			lightDepthNumber = 0;
+		}
+
 	}
 
 	ImGui::End();
@@ -2145,6 +2155,15 @@ void RenderDeferredShadowsDirectional()
 	if (deferredID > 4)
 	{
 		deferredID = 0;
+	}
+
+	if (lightDepthNumber == 0)
+	{
+		g_Lighting.LinearDepth = 0;
+	}
+	else if (lightDepthNumber == 1)
+	{
+		g_Lighting.LinearDepth = 1;
 	}
 
 	XMMATRIX mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());

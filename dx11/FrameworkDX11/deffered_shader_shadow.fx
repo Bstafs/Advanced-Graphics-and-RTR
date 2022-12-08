@@ -38,7 +38,8 @@ struct Light
 	//----------------------------------- (16 byte boundary)
     int LightType; // 4 bytes
     bool Enabled; // 4 bytes
-    int2 Padding; // 8 bytes
+    int LinearDepth;
+    int padding09;
 	//----------------------------------- (16 byte boundary)
 }; // Total:                           // 80 bytes (5 * 16)
 
@@ -123,13 +124,41 @@ void CreateLightPositions(out float3 vertexToEye, out float3 vertexToLight, out 
 
 }
 
-float CalculateShadow(float4 lightSpace)
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * 0.01f * 100.0f) / (100.0f + 0.01f - z * (100.0f - 0.01f));
+    
+    // 0.01f = near plane clip
+    // 100.0f = near plane clip
+    // Lazy hardcode 
+}
+
+float CalculateShadow(float4 lightSpace, float3 normal, float3 lightDir)
 {
     float3 projCoords = lightSpace.xyz / lightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float closestDepth = txShadow.Sample(cmpSampler, projCoords.xy).r;
+    
+    float depthValue = txShadow.Sample(cmpSampler, projCoords.xy).r;
+    
+    float closestDepth = 0;
+    
+    int linearDepthType = Lights[0].LinearDepth;
+    
+    if (linearDepthType == 0)
+    {
+        closestDepth = LinearizeDepth(depthValue) / 100.0f;
+    }
+    else if (linearDepthType == 1)
+    {
+        closestDepth = depthValue;
+    }
+
     float currentDepth = projCoords.z;
-    float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float shadow = currentDepth  - bias > closestDepth ? 1.0 : 0.0;
+    //if (projCoords.z > 1.0)
+    //    shadow = 0.0;
     return shadow;
 }
 
@@ -150,7 +179,7 @@ float4 DoDirecitonalLight(in float3 vertexToEye, in float3 vertexToLight, in flo
     
     lightDirection = normalize(lightDirection);
    
-    float shadows = CalculateShadow(LSM);
+    float shadows = CalculateShadow(LSM, normal, lightDirection);
 
     float3 finalDiffuse = DoDiffuse(normal, lightDirection);
     float4 spec = DoSpecular(Lights[0], vertexToEye, lightDirection, normal, 32.0f);
