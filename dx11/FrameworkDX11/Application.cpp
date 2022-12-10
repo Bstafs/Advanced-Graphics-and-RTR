@@ -173,6 +173,8 @@ const char* renderLabelRelief = ("Shader: Relief");
 const char* renderLabelOcclusion = ("Shader: Occlusion");
 const char* renderLOcclusionShadow = ("Shader: Occlusion Self-Shadow");
 
+std::vector<char*> renderNames;
+
 const char* deferredLabelNormal = ("Shader: Normal");
 const char* deferredLabelSimple = ("Shader: Simple");
 const char* deferredLabelSteep = ("Shader: Steep");
@@ -1799,16 +1801,10 @@ void RenderDeferred()
 		g_Lighting.gBufferTextures = 1;
 	}
 
-	XMFLOAT4X4 lightViewMatrix;
-	XMVECTOR Eye = XMVectorSet(g_Lighting.Position.x, g_Lighting.Position.y, g_Lighting.Position.z, 0.0f);
-	XMVECTOR At = XMVectorSet(g_Lighting.Direction.x, g_Lighting.Direction.y, g_Lighting.Direction.z, 0.0f);
-	XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-	XMStoreFloat4x4(&lightViewMatrix, XMMatrixLookToLH(Eye, At, Up));
-
 	// get the game object world transform
 	XMMATRIX mGOCube = XMLoadFloat4x4(g_GameObject.getTransform());
 	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
-	XMMATRIX view = XMLoadFloat4x4(&lightViewMatrix);
+	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
 	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
 
 	ConstantBuffer cb;
@@ -1951,7 +1947,7 @@ void RenderDeferred()
 
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
-	for (int i = 0; i < 15; i++)
+	for (int i = 0; i < 30; i++)
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
 	}
