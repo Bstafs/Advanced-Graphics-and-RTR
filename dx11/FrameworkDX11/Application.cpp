@@ -562,7 +562,7 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
-	//// Deferred Rendering
+	// Deferred Rendering
 	for (int i = 0; i < 6; i++)
 	{
 		hr = g_pd3dDevice->CreateRenderTargetView(g_pGbufferTargetTextures[i], &renderTargetViewDesc, &g_pGbufferRenderTargetView[i]);
