@@ -105,6 +105,7 @@ struct Light
 		, LightType(DirectionalLight)
 		, Enabled(0)
 		, LinearDepth(0)
+		, gBufferTextures(0)
 	{}
 
 	Light(DirectX::XMFLOAT4 position, DirectX::XMFLOAT4 direction, DirectX::XMFLOAT4 colour,
@@ -134,7 +135,7 @@ struct Light
 	int         LightType;
 	int         Enabled;
 	int LinearDepth;
-	int padding09;
+	int gBufferTextures;
 	//----------------------------------- (16 byte boundary)
 };  // Total:                              80 bytes ( 5 * 16 )
 

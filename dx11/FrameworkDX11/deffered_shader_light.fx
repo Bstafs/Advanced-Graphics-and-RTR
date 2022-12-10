@@ -37,7 +37,7 @@ struct Light
     int LightType; // 4 bytes
     bool Enabled; // 4 bytes
     int LinearDepth;
-    int padding09;
+    bool gBufferTextures;
 	//----------------------------------- (16 byte boundary)
 }; // Total:                           // 80 bytes (5 * 16)
 
@@ -158,8 +158,20 @@ float4 DoPointLight(in float3 vertexToEye, in float3 vertexToLight, in float3 no
     float3 finalSpecular = spec.xyz;
     float3 finalAmbient = (ambient * GlobalAmbient.xyz);
     
-    float4 finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0f) * float4(diffuse, 1.0f);
     
+    int gBuffer = Lights[0].gBufferTextures;
+    
+    float4 finalColor = 0;
+    
+    if (gBuffer == 0)
+    {
+        finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0f) * float4(diffuse, 1.0f);
+    }
+    else if (gBuffer == 1)
+    {
+        finalColor = float4(emissive + finalAmbient + (finalDiffuse + finalSpecular), 1.0f) * float4(diffuse, 1.0f);
+    }
+   
     return finalColor;
 }
 
