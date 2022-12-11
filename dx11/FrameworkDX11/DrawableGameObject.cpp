@@ -244,7 +244,6 @@ void CalculateTangentBinormalRH(SimpleVertex v0, SimpleVertex v1, SimpleVertex v
 	return;
 }
 
-
 HRESULT DrawableGameObject::initMesh(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pContext)
 {
 	// Create vertex buffer
