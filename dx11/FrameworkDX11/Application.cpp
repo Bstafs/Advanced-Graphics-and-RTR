@@ -188,6 +188,8 @@ const char* deferredLabelNames;
 unsigned int renderID = 0;
 const char* renderLabelNames;
 
+unsigned int ppID = 0;
+
 unsigned int updateID = 0;
 
 unsigned int lightTypeNumber = 0;
@@ -748,7 +750,7 @@ HRESULT		InitMesh()
 
 	// Compile the vertex shader
 	pVSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shader_shadows.fx", "VS", "vs_4_0", &pVSBlob);
+	hr = CompileShaderFromFile(L"shader_depth.fx", "VS", "vs_4_0", &pVSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -888,7 +890,7 @@ HRESULT		InitMesh()
 
 	// Compile the pixel shader
 	pPSBlob = nullptr;
-	hr = CompileShaderFromFile(L"shader_shadows.fx", "PS", "ps_4_0", &pPSBlob);
+	hr = CompileShaderFromFile(L"shader_depth.fx", "PS", "ps_4_0", &pPSBlob);
 	if (FAILED(hr))
 	{
 		MessageBox(nullptr,
@@ -1087,6 +1089,10 @@ void CleanupDevice()
 	if (g_pQuadPS) g_pQuadPS->Release();
 	if (g_pQuadVS) g_pQuadVS->Release();
 	if (g_pQuadLayout) g_pQuadLayout->Release();
+	if (g_pGbufferPS)g_pGbufferPS->Release();
+	if (g_pGbufferVS)g_pGbufferVS->Release();
+	if (g_pGbufferLightingPS) g_pGbufferLightingPS->Release();
+	if (g_pGbufferLightingVS) g_pGbufferLightingVS->Release();
 	if (g_pSwapChain1) g_pSwapChain1->Release();
 	if (g_pSwapChain) g_pSwapChain->Release();
 	if (g_pImmediateContext1) g_pImmediateContext1->Release();
@@ -1390,74 +1396,58 @@ void IMGUI()
 			updateID = 0;
 		}
 
-		switch (renderID)
+		if (ImGui::Button("Normal Mapping"))
 		{
-		case 0:
-		{
-			renderLabelNames = renderLabelNormal;
-			break;
+			renderID = 0;
 		}
-		case 1:
+		if (ImGui::Button("Simple Parallax"))
 		{
-			renderLabelNames = renderLabelSimple;
-			break;
+			renderID = 1;
 		}
-		case 2:
+		if (ImGui::Button("Steep Parallax"))
 		{
-			renderLabelNames = renderLabelSteep;
-			break;
+			renderID = 2;
 		}
-		case 3:
+		if (ImGui::Button("Relief Parallax"))
 		{
-			renderLabelNames = renderLabelRelief;
-			break;
+			renderID = 3;
 		}
-		case 4:
+		if (ImGui::Button("Occlusion Parallax"))
 		{
-			renderLabelNames = renderLabelOcclusion;
-			break;
+			renderID = 4;
 		}
-		case 5:
+		if (ImGui::Button("Occlusion Self Shadowing Parallax"))
 		{
-			renderLabelNames = renderLOcclusionShadow;
-			break;
-		}
-		}
-
-		if (ImGui::Button(renderLabelNames))
-		{
-			renderID += 1;
+			renderID = 5;
 		}
 	}
 
 	if (ImGui::CollapsingHeader("Post-Processing"))
-	{
-		ImGui::Text("Reset Render To Texture");
-		if (ImGui::Button("Reset Render"))
-		{
-			updateID = 0;
-		}
-		ImGui::Text("Post-Processing Effects");
-		if (ImGui::Button("Original"))
-		{
-			SetPPShader(L"shaderQuad.fx");
-		}
-		if (ImGui::Button("Tint"))
-		{
-			SetPPShader(L"shaderQuadTint.fx");
-		}
-		if (ImGui::Button("Gaussian Blur"))
-		{
-			SetPPShader(L"shaderQuadGaussian.fx");
-		}
-		if (ImGui::Button("Bloom"))
-		{
-			SetPPShader(L"shaderQuadBloom.fx");
-		}
+	{		
 		ImGui::Text("Render To Texture");
 		if (ImGui::Button("Render To Texture"))
 		{
 			updateID = 1;
+		}
+
+		if (ImGui::Button("Original"))
+		{
+			ppID = 0;
+		}
+
+		if (ImGui::Button("Tint"))
+		{
+			ppID = 1;
+		}
+
+		if (ImGui::Button("Guassian Blur"))
+		{
+			ppID = 2;
+		}
+
+		if (ImGui::Button("Bloom"))
+		{
+			ppID = 3;
 		}
 	}
 
@@ -1467,15 +1457,38 @@ void IMGUI()
 		{
 			updateID = 2;
 		}
-		if (ImGui::Button("Render Deferred - GBuffer Blend"))
-		{
-			gBufferBlend = 0;
+		if (ImGui::CollapsingHeader("Deferred Rendering - Mapping")) {
+			if (ImGui::Button("Normal Mapping"))
+			{
+				deferredID = 0;
+			}
+			if (ImGui::Button("Simple Parallax"))
+			{
+				deferredID = 1;
+			}
+			if (ImGui::Button("Steep Parallax"))
+			{
+				deferredID = 2;
+			}
+			if (ImGui::Button("Relief Parallax"))
+			{
+				deferredID = 3;
+			}
+			if (ImGui::Button("Occlusion Parallax"))
+			{
+				deferredID = 4;
+			}
 		}
-		if (ImGui::Button("Render Deferred - GBuffer Seperate"))
-		{
-			gBufferBlend = 1;
+		if (ImGui::CollapsingHeader("Deferred Rendering - GBuffer")) {
+			if (ImGui::Button("Render Deferred - GBuffer Blend"))
+			{
+				gBufferBlend = 0;
+			}
+			if (ImGui::Button("Render Deferred - GBuffer Seperate"))
+			{
+				gBufferBlend = 1;
+			}
 		}
-
 		if (gBufferBlend == 1)
 		{
 			if (ImGui::Button("Render Deferred - GBuffer Seperate - Change Texture"))
@@ -1484,52 +1497,19 @@ void IMGUI()
 			}
 		}
 
-
-		switch (deferredID)
-		{
-		case 0:
-		{
-			deferredLabelNames = deferredLabelNormal;
-			break;
-		}
-		case 1:
-		{
-			deferredLabelNames = deferredLabelSimple;
-			break;
-		}
-		case 2:
-		{
-			deferredLabelNames = deferredLabelSteep;
-			break;
-		}
-		case 3:
-		{
-			deferredLabelNames = deferredLabelRelief;
-			break;
-		}
-		case 4:
-		{
-			deferredLabelNames = deferredLabelOcclusion;
-			break;
-		}
-		}
-
-		if (ImGui::Button(deferredLabelNames))
-		{
-			deferredID += 1;
-		}
-
-		if (ImGui::Button("Render Deferred Shadow Mapping"))
-		{
-			updateID = 3;
-		}
-		if (ImGui::Button("Shadow Mapping - Non-Linear"))
-		{
-			lightDepthNumber = 1;
-		}
-		if (ImGui::Button("Shadow Mapping - Linear"))
-		{
-			lightDepthNumber = 0;
+		if (ImGui::CollapsingHeader("Deferred Rendering - Shadow Mapping")) {
+			if (ImGui::Button("Render Deferred Shadow Mapping"))
+			{
+				updateID = 3;
+			}
+			if (ImGui::Button("Shadow Mapping - Non-Linear"))
+			{
+				lightDepthNumber = 1;
+			}
+			if (ImGui::Button("Shadow Mapping - Linear"))
+			{
+				lightDepthNumber = 0;
+			}
 		}
 
 	}
@@ -1678,6 +1658,7 @@ void RenderToTarget()
 
 	BlurBufferHorizontal cbh;
 	cbh.horizontal = true;
+	cbh.ppID = ppID;
 	cbh.padding01 = XMFLOAT2(1, 1);
 	g_pImmediateContext->UpdateSubresource(g_pBlurBufferHorizontal, 0, nullptr, &cbh, 0, 0);
 
@@ -1754,7 +1735,6 @@ void RenderToTarget()
 
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pMotionBlurBuffer);
 
 	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
