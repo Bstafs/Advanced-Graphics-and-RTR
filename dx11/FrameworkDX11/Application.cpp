@@ -166,27 +166,9 @@ bool quadTexture = false;
 
 int deferredRenderState = 0;
 
-const char* renderLabelNormal = ("Shader: Normal");
-const char* renderLabelSimple = ("Shader: Simple");
-const char* renderLabelSteep = ("Shader: Steep");
-const char* renderLabelRelief = ("Shader: Relief");
-const char* renderLabelOcclusion = ("Shader: Occlusion");
-const char* renderLOcclusionShadow = ("Shader: Occlusion Self-Shadow");
-
-std::vector<char*> renderNames;
-
-const char* deferredLabelNormal = ("Shader: Normal");
-const char* deferredLabelSimple = ("Shader: Simple");
-const char* deferredLabelSteep = ("Shader: Steep");
-const char* deferredLabelRelief = ("Shader: Relief");
-const char* deferredLabelOcclusion = ("Shader: Occlusion");
-const char* deferredLabelOcclusionShadow = ("Shader: Occlusion Shadow-Mapping");
-
 unsigned int deferredID = 0;
-const char* deferredLabelNames;
 
 unsigned int renderID = 0;
-const char* renderLabelNames;
 
 unsigned int ppID = 0;
 
@@ -1317,18 +1299,6 @@ void UpdateCamera()
 
 	g_pCurrentCamera->SetView();
 	g_pCurrentCamera->SetProjection();
-}
-
-void SetShader(wstring fn)
-{
-	filename = fn.c_str();
-	InitMesh();
-}
-
-void SetPPShader(wstring fn)
-{
-	ppFileName = fn.c_str();
-	InitMesh();
 }
 
 void IMGUI()
