@@ -1276,12 +1276,21 @@ void DetectInput(double deltaTime)
 	// Up
 	if (GetAsyncKeyState('E'))
 	{
-		rotationY += mCameraSpeed;
+		rotationY += mCameraSpeed * cos(rotationY);
 	}
 	// Down
 	if (GetAsyncKeyState('Q'))
 	{
-		rotationY -= mCameraSpeed;
+		rotationY -= mCameraSpeed * cos(rotationY);
+	}
+
+	if (rotationY > 1.5f)
+	{
+		rotationY = 1.5f;
+	}
+	if (rotationY < -1.5f)
+	{
+		rotationY = -1.5f;
 	}
 
 	return;
