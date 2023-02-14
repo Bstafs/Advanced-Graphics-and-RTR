@@ -12,7 +12,8 @@
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //--------------------------------------------------------------------------------------
-#define _XM_NO_INTRINSICS_
+
+//#define _XM_NO_INTRINSICS_
 
 #include "Application.h"
 
@@ -26,7 +27,7 @@ HRESULT		InitMesh();
 HRESULT		InitWorld(int width, int height, HWND hwnd);
 void		CleanupDevice();
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-void		Render();
+void		RenderCube();
 void RenderToTarget();
 void UpdateCamera();
 void DetectInput(double deltaTime);
@@ -36,6 +37,7 @@ void SetPPShader(wstring fn);
 void UpdateFunctions();
 void RenderDeferred();
 void RenderDeferredShadowsDirectional();
+void DrawLine();
 // Globals
 
 // DirectX Setup
@@ -54,7 +56,7 @@ ID3D11DeviceContext1* g_pImmediateContext1 = nullptr;
 IDXGISwapChain* g_pSwapChain = nullptr;
 IDXGISwapChain1* g_pSwapChain1 = nullptr;
 
-// Render Targets
+// RenderCube Targets
 ID3D11RenderTargetView* g_pRenderTargetView;
 ID3D11RenderTargetView* g_pRTTRenderTargetView = nullptr;
 ID3D11RenderTargetView* g_pGbufferRenderTargetView[6];
@@ -111,7 +113,8 @@ ID3D11Buffer* g_pBlurBufferHorizontal = nullptr;
 ID3D11Buffer* g_pMotionBlurBuffer = nullptr;
 ID3D11Buffer* g_pQuadVB = nullptr;
 ID3D11Buffer* g_pQuadIB = nullptr;
-
+ID3D11Buffer* g_pLineVB = nullptr;
+ID3D11Buffer* g_pLineIB = nullptr;
 // Descriptons
 D3D11_TEXTURE2D_DESC textureDesc;
 D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
@@ -180,6 +183,8 @@ unsigned int lightDepthNumber = 0;
 unsigned int gBufferBlend = 0;
 unsigned int gBufferTextures = 0;
 
+// Object Render
+
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
@@ -205,7 +210,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
-			UpdateFunctions();
+			//UpdateFunctions();
+			UpdateCamera();
+			DrawLine();
 		}
 	}
 
@@ -222,7 +229,7 @@ void UpdateFunctions()
 	{
 	case 0:
 	{
-		Render();
+		RenderCube();
 		break;
 	}
 	case 1:
@@ -507,7 +514,7 @@ HRESULT InitDevice()
 		return hr;
 
 
-	//Texture Render
+	//Texture RenderCube
 	D3D11_TEXTURE2D_DESC textureDesc;
 	ZeroMemory(&textureDesc, sizeof(textureDesc));
 
@@ -628,6 +635,57 @@ HRESULT InitDevice()
 		return hr;
 
 	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Line Topology
+	SimpleLineVertex lineV[]
+	{
+	{ XMFLOAT3(-5.0f, -5.0f, 0.0f) },
+	{ XMFLOAT3(0.0f, 5.0f, 0.0f) },
+	{ XMFLOAT3(5.0f, -5.0f, 0.0f) },
+	{ XMFLOAT3(10.0f, 5.0f, 0.0f) },
+	{ XMFLOAT3(15.0f, -5.0f, 0.0f) },
+	{ XMFLOAT3(20.0f, 5.0f, 0.0f) },
+
+	};
+
+	// generate vb
+	D3D11_BUFFER_DESC lbd = {};
+	lbd.Usage = D3D11_USAGE_DEFAULT;
+	lbd.ByteWidth = sizeof(SimpleLineVertex) * 6;
+	lbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	lbd.CPUAccessFlags = 0;
+
+	D3D11_SUBRESOURCE_DATA InitDataLine = {};
+	InitDataLine.pSysMem = lineV;
+	hr = g_pd3dDevice->CreateBuffer(&lbd, &InitDataLine, &g_pLineVB);
+	if (FAILED(hr))
+		return hr;
+
+	// Create index buffer
+	WORD lineIndices[] =
+	{
+		0,
+		1,
+		2,
+		3,
+		4,
+		5,
+		6
+	};
+
+	lbd.Usage = D3D11_USAGE_DEFAULT;
+	lbd.ByteWidth = sizeof(WORD) * 6;        // 36 vertices needed for 12 triangles in a triangle list
+	lbd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	lbd.CPUAccessFlags = 0;
+	InitDataLine.pSysMem = lineIndices;
+	hr = g_pd3dDevice->CreateBuffer(&lbd, &InitDataLine, &g_pLineIB);
+	if (FAILED(hr))
+		return hr;
+
+	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
+
+
+
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
@@ -1370,7 +1428,7 @@ void IMGUI()
 	}
 	if (ImGui::CollapsingHeader("Rendering"))
 	{
-		if (ImGui::Button("Render Original"))
+		if (ImGui::Button("RenderCube Original"))
 		{
 			updateID = 0;
 		}
@@ -1402,9 +1460,9 @@ void IMGUI()
 	}
 
 	if (ImGui::CollapsingHeader("Post-Processing"))
-	{		
-		ImGui::Text("Render To Texture");
-		if (ImGui::Button("Render To Texture"))
+	{
+		ImGui::Text("RenderCube To Texture");
+		if (ImGui::Button("RenderCube To Texture"))
 		{
 			updateID = 1;
 		}
@@ -1432,7 +1490,7 @@ void IMGUI()
 
 	if (ImGui::CollapsingHeader("Deferred Rendering"))
 	{
-		if (ImGui::Button("Render Deferred"))
+		if (ImGui::Button("RenderCube Deferred"))
 		{
 			updateID = 2;
 		}
@@ -1459,25 +1517,25 @@ void IMGUI()
 			}
 		}
 		if (ImGui::CollapsingHeader("Deferred Rendering - GBuffer")) {
-			if (ImGui::Button("Render Deferred - GBuffer Blend"))
+			if (ImGui::Button("RenderCube Deferred - GBuffer Blend"))
 			{
 				gBufferBlend = 0;
 			}
-			if (ImGui::Button("Render Deferred - GBuffer Seperate"))
+			if (ImGui::Button("RenderCube Deferred - GBuffer Seperate"))
 			{
 				gBufferBlend = 1;
 			}
 		}
 		if (gBufferBlend == 1)
 		{
-			if (ImGui::Button("Render Deferred - GBuffer Seperate - Change Texture"))
+			if (ImGui::Button("RenderCube Deferred - GBuffer Seperate - Change Texture"))
 			{
 				gBufferTextures += 1;
 			}
 		}
 
 		if (ImGui::CollapsingHeader("Deferred Rendering - Shadow Mapping")) {
-			if (ImGui::Button("Render Deferred Shadow Mapping"))
+			if (ImGui::Button("RenderCube Deferred Shadow Mapping"))
 			{
 				updateID = 3;
 			}
@@ -1500,7 +1558,7 @@ void IMGUI()
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
-void Render()
+void RenderCube()
 {
 	float t = CalculateDeltaTime();
 	if (t == 0.0f)
@@ -1511,10 +1569,7 @@ void Render()
 		renderID = 0;
 	}
 
-	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-
-	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
@@ -1554,27 +1609,13 @@ void Render()
 	//cb1.defID = deferredID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
 
-	// Render the cube
-	//Vertex Shader
+    // Render a Cube
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-
-	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-	//Pixel shader
-	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-
-	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
-	g_GameObject.draw(g_pImmediateContext);
+	Render* renderCube = new Render(g_pd3dDevice, g_pImmediateContext, g_pVertexShader, g_pPixelShader, g_pVertexLayout);
+	renderCube->DrawObjects(&g_GameObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
+	renderCube = nullptr;
+	delete renderCube;
 
 	IMGUI();
 
@@ -1588,7 +1629,7 @@ void RenderToTarget()
 	if (t == 0.0f)
 		return;
 
-	// First Render
+	// First RenderCube
 
 	// Clear the back buffer
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
@@ -1597,7 +1638,7 @@ void RenderToTarget()
 	// Clear the depth buffer to 1.0 (max depth)
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	//Set Render Target
+	//Set RenderCube Target
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRTTRenderTargetView, g_pDepthStencilView);
 
 	// Update GameObject
@@ -1655,38 +1696,14 @@ void RenderToTarget()
 	cbm.vOutputColor = cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pMotionBlurBuffer, 0, nullptr, &cbv, 0, 0);
 
-	// Vertex Shader Layout
+	// Render a Cube
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-	// Vertex Shader
-	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	// Vertex Constant Buffer
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	// Vertex Light Buffer
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	Render* renderCube = new Render(g_pd3dDevice, g_pImmediateContext, g_pVertexShader, g_pPixelShader, g_pVertexLayout);
+	renderCube->DrawObjects(&g_GameObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
+	renderCube = nullptr;
+	delete renderCube;
 
-	// Pixel shader
-	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	// Pixel Sampler
-	g_pImmediateContext->PSSetSamplers(1, 2, g_GameObject.getTextureSamplerState());
-	// Material Pixel Buffer
-	ID3D11Buffer* materialCB = g_GameObject.getMaterialConstantBuffer();
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	// Light Pixel Buffer
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	// Constant Pixel Buffer
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	// Shader Pixel Resource
-	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
-
-	// Draw
-	g_GameObject.draw(g_pImmediateContext);
-
-	// Second Render
-	// Set Render Target
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
 	// Clear the depth buffer 
@@ -1701,27 +1718,14 @@ void RenderToTarget()
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
 
-	//Vertex Shader Quad
 	g_pImmediateContext->VSSetShader(g_pQuadVS, nullptr, 0);
-
-	// Pixel shader Quad
 	g_pImmediateContext->PSSetShader(g_pQuadPS, nullptr, 0);
-
-	// Pixel Sampler 
 	g_pImmediateContext->PSSetSamplers(0, 2, g_GameObject.getTextureSamplerState());
-
-	// Pixel Blur Buffer
-
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pBlurBufferHorizontal);
 	g_pImmediateContext->PSSetConstantBuffers(1, 1, &g_pBlurBufferVertical);
-
-	// Pixel Shader Resource
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pRTTShaderResourceView);
-
-	// Draw Quad
 	g_pImmediateContext->DrawIndexed(6, 0, 0);
 
-	// ImGui
 	IMGUI();
 
 	cbm.mPreviousProjection = XMMatrixTranspose(projection);
@@ -1733,6 +1737,10 @@ void RenderToTarget()
 	// Set Shader Resource to Null / Clear
 	ID3D11ShaderResourceView* const shaderClear[1] = { NULL };
 	g_pImmediateContext->PSSetShaderResources(0, 1, shaderClear);
+
+
+	renderCube = nullptr;
+	delete renderCube;
 }
 
 void RenderDeferred()
@@ -1755,7 +1763,7 @@ void RenderDeferred()
 	{
 		g_Lighting.gBufferTextures = 0;
 	}
-	else if(gBufferBlend == 1)
+	else if (gBufferBlend == 1)
 	{
 		g_Lighting.gBufferTextures = 1;
 	}
@@ -1816,51 +1824,20 @@ void RenderDeferred()
 	cb.vOutputColor = XMFLOAT4(0, 0, 0, 0);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-	// Plane Render
+	// Render a Plane
 	UINT stride = sizeof(SimpleVertexPlane);
 	UINT offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
+	Render* renderPlane = new Render(g_pd3dDevice, g_pImmediateContext, g_pGbufferVS, g_pGbufferPS, g_pVertexLayout);
+	renderPlane->DrawPlanes(&g_PlaneObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
 
-	g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
-	ID3D11Buffer* materialCB = g_PlaneObject.getMaterialConstantBuffer();
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	g_pImmediateContext->PSSetSamplers(0, 1, g_PlaneObject.getTextureSamplerState());
-	g_pImmediateContext->PSSetShaderResources(0, 1, g_PlaneObject.getTextureResourceView());
-
-	g_PlaneObject.draw(g_pImmediateContext);
-
-	// Cube Render
+	// Render Cube
 	cb.mWorld = XMMatrixTranspose(mGOCube);
 	cb.defID = deferredID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
 	stride = sizeof(SimpleVertex);
-	offset = 0;
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_GameObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_GameObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-
-	g_pImmediateContext->VSSetShader(g_pGbufferVS, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-	g_pImmediateContext->PSSetShader(g_pGbufferPS, nullptr, 0);
-	materialCB = g_GameObject.getMaterialConstantBuffer();
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-	g_pImmediateContext->PSSetSamplers(0, 1, g_GameObject.getTextureSamplerState());
-	g_pImmediateContext->PSSetShaderResources(0, 1, g_GameObject.getTextureResourceView());
-
-	g_GameObject.draw(g_pImmediateContext);
+	Render* renderCube = new Render(g_pd3dDevice, g_pImmediateContext, g_pGbufferVS, g_pGbufferPS, g_pVertexLayout);
+	renderCube->DrawObjects(&g_GameObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
 
 	// Lighting Pass
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1870,7 +1847,6 @@ void RenderDeferred()
 	g_pImmediateContext->OMSetBlendState(blendState, blend, 0xFFFFFFFF);
 
 	stride = sizeof(SimpleVertexQuad);
-	offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pQuadVB, &stride, &offset);
 	g_pImmediateContext->IASetIndexBuffer(g_pQuadIB, DXGI_FORMAT_R16_UINT, 0);
 	g_pImmediateContext->IASetInputLayout(g_pQuadLayout);
@@ -1910,6 +1886,12 @@ void RenderDeferred()
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
 	}
+
+	renderCube = nullptr;
+	delete renderCube;
+
+	renderPlane = nullptr;
+	delete renderPlane;
 }
 
 void RenderDeferredShadowsDirectional()
@@ -1993,7 +1975,7 @@ void RenderDeferredShadowsDirectional()
 	cb.mProjection = XMMatrixTranspose(ProjOrtho);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-	// Plane Render
+	// Plane RenderCube
 	UINT stride = sizeof(SimpleVertexPlane);
 	UINT offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
@@ -2013,7 +1995,7 @@ void RenderDeferredShadowsDirectional()
 
 	g_PlaneObject.draw(g_pImmediateContext);
 
-	// Cube Render
+	// Cube RenderCube
 	cb.mWorld = XMMatrixTranspose(mGOCube);
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
@@ -2047,7 +2029,7 @@ void RenderDeferredShadowsDirectional()
 	cb.mProjection = XMMatrixTranspose(XMLoadFloat4x4(g_pCurrentCamera->GetProjection()));
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
 
-	// Plane Render
+	// Plane RenderCube
 	stride = sizeof(SimpleVertexPlane);
 	offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
@@ -2067,7 +2049,7 @@ void RenderDeferredShadowsDirectional()
 
 	g_PlaneObject.draw(g_pImmediateContext);
 
-	// Cube Render
+	// Cube RenderCube
 	cb.mWorld = XMMatrixTranspose(mGOCube);
 	cb.defID = deferredID;
 	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb, 0, 0);
@@ -2144,4 +2126,62 @@ void RenderDeferredShadowsDirectional()
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
 	}
+}
+
+void DrawLine()
+{
+	float t = CalculateDeltaTime();
+	if (t == 0.0f)
+		return;
+
+	// Clear the back buffer
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+
+	// Clear the depth buffer to 1.0 (max depth)
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	g_GameObject.update(t, g_pImmediateContext);
+	g_PlaneObject.update(t, g_pImmediateContext);
+
+	SetupLightForRenderPoint();
+
+	// get the game object world transform
+	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
+	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
+	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
+	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
+
+	// store this and the view / projection in a constant buffer for the vertex shader to use
+	ConstantBuffer cb1;
+	cb1.mWorld = XMMatrixTranspose(mGO);
+	cb1.mView = XMMatrixTranspose(view);
+	cb1.mProjection = XMMatrixTranspose(projection);
+	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+	// Render Cube
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+	Render* renderCube = new Render(g_pd3dDevice, g_pImmediateContext, g_pVertexShader, g_pPixelShader, g_pVertexLayout);
+	renderCube->DrawObjects(&g_GameObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
+
+	cb1.mWorld = XMMatrixTranspose(mGOPlane);
+	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+
+	// Render Plane
+	stride = sizeof(SimpleVertexPlane);
+	Render* renderPlane = new Render(g_pd3dDevice, g_pImmediateContext, g_pVertexShader, g_pPixelShader, g_pVertexLayout);
+	renderPlane->DrawPlanes(&g_PlaneObject, stride, offset, g_pLightConstantBuffer, g_pConstantBuffer);
+
+	renderCube = nullptr;
+	delete renderCube;
+
+	renderPlane = nullptr;
+	delete renderPlane;
+
+	IMGUI();
+
+	// Present our back buffer to our front buffer
+	g_pSwapChain->Present(0, 0);
 }
