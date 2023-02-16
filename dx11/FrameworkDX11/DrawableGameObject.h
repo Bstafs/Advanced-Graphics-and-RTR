@@ -22,11 +22,6 @@ struct SimpleVertex
 	XMFLOAT3 BiNormal; 
 };
 
-struct SimpleLineVertex
-{
-	XMFLOAT3 pos;
-};
-
 struct SimpleVertexQuad
 {
 	XMFLOAT3 Pos;

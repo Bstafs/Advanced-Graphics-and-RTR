@@ -60,7 +60,6 @@
     <ClCompile Include="Plane.cpp">
       <Filter>.cpp</Filter>
     </ClCompile>
-    <ClCompile Include="Render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -111,7 +110,6 @@
     <ClInclude Include="Plane.h">
       <Filter>.h</Filter>
     </ClInclude>
-    <ClInclude Include="Render.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\color.dds">
