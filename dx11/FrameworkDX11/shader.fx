@@ -373,18 +373,6 @@ float ParallaxShadowsRedon(float2 texCoords, float3 lightDir)
     return r;
     
 }
-
-float3 bez(float3 p0, float3 p1, float3 p2, float3 p3, float u)
-{
-    float B0 = (1. - u) * (1. - u) * (1. - u);
-    float B1 = 3. * u * (1. - u) * (1. - u);
-    float B2 = 3. * u * u * (1. - u);
-    float B3 = u * u * u;
-
-    float3 p = B0 * p0 + B1 * p1 + B2 * p2 + B3 * p3;
-    return p;
-}
-
 //--------------------------------------------------------------------------------------
 // Vertex Shader
 //--------------------------------------------------------------------------------------
@@ -456,12 +444,6 @@ float4 PS(PS_INPUT IN) : SV_TARGET
         case 5:
         {
                 texCoords = ParallaxOcclusionMapping(IN.Tex, parallaxHeight, IN.eyeVectorTS);
-                break;
-            }
-    case 6:
-	        {
-                float t = texCoords;
-                texCoords = float4(bez(IN.worldPos[0], IN.worldPos[1], IN.worldPos[2], IN.worldPos[3], t), 0.0f);
                 break;
             }
         

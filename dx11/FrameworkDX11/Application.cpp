@@ -36,7 +36,6 @@ void SetPPShader(wstring fn);
 void UpdateFunctions();
 void RenderDeferred();
 void RenderDeferredShadowsDirectional();
-void DrawLine();
 // Globals
 
 // DirectX Setup
@@ -112,8 +111,6 @@ ID3D11Buffer* g_pBlurBufferHorizontal = nullptr;
 ID3D11Buffer* g_pMotionBlurBuffer = nullptr;
 ID3D11Buffer* g_pQuadVB = nullptr;
 ID3D11Buffer* g_pQuadIB = nullptr;
-ID3D11Buffer* g_pLineVB = nullptr;
-ID3D11Buffer* g_pLineIB = nullptr;
 
 // Descriptons
 D3D11_TEXTURE2D_DESC textureDesc;
@@ -208,9 +205,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 		}
 		else
 		{
-			//UpdateFunctions();
-			UpdateCamera();
-			DrawLine();
+			UpdateFunctions();
 		}
 	}
 
@@ -633,53 +628,6 @@ HRESULT InitDevice()
 		return hr;
 
 	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// Line Topology
-	SimpleLineVertex lineV[]
-	{
-	{ XMFLOAT3(-5.0f, -5.0f, 0.0f) },
-	{ XMFLOAT3(0.0f, 5.0f, 0.0f) },
-	{ XMFLOAT3(5.0f, -5.0f, 0.0f) },
-	{ XMFLOAT3(10.0f, 5.0f, 0.0f) },
-	{ XMFLOAT3(15.0f, -5.0f, 0.0f) },
-	{ XMFLOAT3(20.0f, 5.0f, 0.0f) },
-
-	};
-
-	// generate vb
-	D3D11_BUFFER_DESC lbd = {};
-	lbd.Usage = D3D11_USAGE_DEFAULT;
-	lbd.ByteWidth = sizeof(SimpleLineVertex) * 6;
-	lbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	lbd.CPUAccessFlags = 0;
-
-	D3D11_SUBRESOURCE_DATA InitDataLine = {};
-	InitDataLine.pSysMem = lineV;
-	hr = g_pd3dDevice->CreateBuffer(&lbd, &InitDataLine, &g_pLineVB);
-	if (FAILED(hr))
-		return hr;
-
-	// Create index buffer
-	WORD lineIndices[] =
-	{
-		0,
-		1,
-		2,
-		3,
-		4,
-		5,
-	};
-
-	lbd.Usage = D3D11_USAGE_DEFAULT;
-	lbd.ByteWidth = sizeof(WORD) * 6;        // 36 vertices needed for 12 triangles in a triangle list
-	lbd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	lbd.CPUAccessFlags = 0;
-	InitDataLine.pSysMem = lineIndices;
-	hr = g_pd3dDevice->CreateBuffer(&lbd, &InitDataLine, &g_pLineIB);
-	if (FAILED(hr))
-		return hr;
-
-	g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
@@ -1451,10 +1399,6 @@ void IMGUI()
 		{
 			renderID = 5;
 		}
-		if (ImGui::Button("Bezier Curve"))
-		{
-			renderID = 6;
-		}
 	}
 
 	if (ImGui::CollapsingHeader("Post-Processing"))
@@ -1555,7 +1499,6 @@ void IMGUI()
 
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
-
 
 void Render()
 {
@@ -2201,98 +2144,4 @@ void RenderDeferredShadowsDirectional()
 	{
 		g_pImmediateContext->PSSetShaderResources(i, 1, shaderClear);
 	}
-}
-
-void DrawLine()
-{
-	float t = CalculateDeltaTime();
-	if (t == 0.0f)
-		return;
-
-	if (renderID > 6)
-	{
-		renderID = 0;
-	}
-
-	// Clear the back buffer
-	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-
-	// Clear the depth buffer to 1.0 (max depth)
-	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
-	g_GameObject.update(t, g_pImmediateContext);
-	g_PlaneObject.update(t, g_pImmediateContext);
-
-	switch (lightTypeNumber)
-	{
-	case 0:
-	{
-		SetupLightForRenderDirectional();
-		break;
-	}
-	case 1:
-	{
-		SetupLightForRenderPoint();
-		break;
-	}
-	case 2:
-	{
-		SetupLightForRenderSpot();
-		break;
-	}
-	}
-
-	// get the game object world transform
-	XMMATRIX mGO = XMLoadFloat4x4(g_GameObject.getTransform());
-	XMMATRIX mGOPlane = XMLoadFloat4x4(g_PlaneObject.getTransform());
-	XMMATRIX view = XMLoadFloat4x4(g_pCurrentCamera->GetView());
-	XMMATRIX projection = XMLoadFloat4x4(g_pCurrentCamera->GetProjection());
-
-	// store this and the view / projection in a constant buffer for the vertex shader to use
-	ConstantBuffer cb1;
-	cb1.mWorld = XMMatrixTranspose(mGO);
-	cb1.mView = XMMatrixTranspose(view);
-	cb1.mProjection = XMMatrixTranspose(projection);
-	cb1.vOutputColor = XMFLOAT4(0, 0, 0, 0);
-	cb1.renID = renderID;
-	//cb1.defID = deferredID;
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-	// Render the cube
-	//Vertex Shader
-	UINT stride = sizeof(SimpleVertex);
-	UINT offset = 0;
-
-	//Render Plane
-	cb1.mWorld = XMMatrixTranspose(mGOPlane);
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
-
-	stride = sizeof(SimpleVertexPlane);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, g_PlaneObject.getVertexBuffer(true), &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_PlaneObject.getIndexBuffer(), DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-
-	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	ID3D11Buffer* materialCB = g_PlaneObject.getMaterialConstantBuffer();
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(1, 1, &materialCB);
-	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pLightConstantBuffer);
-	g_pImmediateContext->PSSetSamplers(0, 1, g_PlaneObject.getTextureSamplerState());
-	g_pImmediateContext->PSSetShaderResources(0, 1, g_PlaneObject.getTextureResourceView());
-
-	g_PlaneObject.draw(g_pImmediateContext);
-
-	stride = sizeof(SimpleLineVertex);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pLineVB, &stride, &offset);
-	g_pImmediateContext->IASetIndexBuffer(g_pLineVB, DXGI_FORMAT_R16_UINT, 0);
-	g_pImmediateContext->DrawIndexed(6, 0, 0);
-
-	IMGUI();
-
-	// Present our back buffer to our front buffer
-	g_pSwapChain->Present(0, 0);
 }

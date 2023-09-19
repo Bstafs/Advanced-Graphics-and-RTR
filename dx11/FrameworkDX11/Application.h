@@ -30,7 +30,3 @@ using namespace std;
 
 typedef vector<DrawableGameObject*> vecDrawables;
 
-struct SimpleLineVertex
-{
-	XMFLOAT3 pos;
-};
